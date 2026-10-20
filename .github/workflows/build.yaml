@@ -2,16 +2,17 @@ name: Android CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feature/**" ]
   pull_request:
     branches: [ "main" ]
 
 jobs:
   build:
+    name: Build & Lint
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -19,10 +20,12 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-      - name: Build with Gradle and Run Tests
-        run: ./gradlew test assembleRelease
+      - name: Run Unit Tests & Lint
+        run: ./gradlew test lintDebug --stacktrace
+
+      - name: Build Library AAR & App Release
+        run: ./gradlew :SecurityCore:assembleRelease assembleDebug --stacktrace
