@@ -3,6 +3,8 @@ package com.github.jragcer.securitycore.storage
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.github.jragcer.securitycore.SecureCore
+import com.github.jragcer.securitycore.api.storage.PassphraseManager
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -24,7 +26,7 @@ class PassphraseManagerTest {
     fun setUp(){
         context = ApplicationProvider.getApplicationContext()
         testDir = File(context.filesDir, "test_keys").apply { mkdirs() }
-        manager = PassphraseManager(context, testDir)
+        manager = SecureCore.createPassphraseManager(context)
     }
 
     @After
@@ -38,7 +40,7 @@ class PassphraseManagerTest {
 
         for (size in sizes) {
             val fileName = "key_size_$size.bin"
-            val result = manager.getOrCreatePassphrase(fileName, size)
+            val result = manager.getOrCreatePassphrase(fileName, size,testDir )
 
             assertTrue("Fallo al generar clave de tamaño $size",result.isSuccess)
             val key = result.getOrNull()
@@ -49,7 +51,7 @@ class PassphraseManagerTest {
 
     @Test
     fun getOrCreatePassphrase_doesNotContainNullBytes(){
-        val result = manager.getOrCreatePassphrase("sqlcipher_key.bin", 64)
+        val result = manager.getOrCreatePassphrase("sqlcipher_key.bin", 64,testDir)
 
         assertTrue(result.isSuccess)
         val key = result.getOrNull()!!
@@ -60,8 +62,8 @@ class PassphraseManagerTest {
     @Test
     fun getOrCreatePassphrase_returnsPersistedKey_onSubsequentCalls(){
         val fileName = "persistent_key.bin"
-        val firstCall = manager.getOrCreatePassphrase(fileName, 32)
-        val secondCall = manager.getOrCreatePassphrase(fileName, 32)
+        val firstCall = manager.getOrCreatePassphrase(fileName, 32,testDir)
+        val secondCall = manager.getOrCreatePassphrase(fileName, 32,testDir)
 
         assertTrue(firstCall.isSuccess)
         assertTrue(secondCall.isSuccess)
@@ -80,7 +82,7 @@ class PassphraseManagerTest {
         FileOutputStream(corruptFile).use { /* No escribe nada */ }
         assertEquals(0L, corruptFile.length())
 
-        val result = manager.getOrCreatePassphrase(fileName, 32)
+        val result = manager.getOrCreatePassphrase(fileName, 32,testDir)
 
         assertTrue("Debe recuperarse y generar una clave válida", result.isSuccess)
         val key = result.getOrNull()
@@ -91,8 +93,8 @@ class PassphraseManagerTest {
 
     @Test
     fun getOrCreatePassphrase_isolatesKeysAcrossDiferentFiles(){
-        val firstCall = manager.getOrCreatePassphrase("key_a.bin", 32)
-        val secondCall = manager.getOrCreatePassphrase("key_b.bin", 32)
+        val firstCall = manager.getOrCreatePassphrase("key_a.bin", 32,testDir)
+        val secondCall = manager.getOrCreatePassphrase("key_b.bin", 32,testDir)
 
         assertTrue(firstCall.isSuccess)
         assertTrue(secondCall.isSuccess)

@@ -3,6 +3,8 @@ package com.github.jragcer.securitycore.storage
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.github.jragcer.securitycore.SecureCore
+import com.github.jragcer.securitycore.api.storage.SecureFileStorage
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -24,7 +26,7 @@ class SecureFileStorageTest {
     fun setUp(){
         context = ApplicationProvider.getApplicationContext()
         testDir = File(context.filesDir, "test_secure_files").apply { mkdirs() }
-        storage = SecureFileStorage(context,testDir)
+        storage = SecureCore.createSecureFileStorage(context)
     }
 
     @After

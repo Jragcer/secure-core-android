@@ -1,8 +1,9 @@
-package com.github.jragcer.securitycore.storage
+package com.github.jragcer.securitycore.internal.storage
 
 import android.content.Context
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
+import com.github.jragcer.securitycore.api.storage.SecureFileStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -19,12 +20,16 @@ import java.nio.charset.Charset
  * and return structured [Result] instances instead of leaking raw cryptographic or I/O exceptions.
  *
  * @property context The application context used to resolve internal directories and interact with the Keystore.
- * @property defaultDirectory The fallback directory where encrypted files reside. Defaults to [Context.getFilesDir].
  */
-class SecureFileStorage (
-    private val context: Context,
+internal class SecureFileStorageImpl (
+    private val context: Context
+): SecureFileStorage {
+
+    /**
+     * The default directory where encrypted files are stored.
+     */
     private val defaultDirectory: File = context.filesDir
-) {
+
     /**
      * Hardware-backed master key in the Android Keystore using the AES256-GCM scheme.
      */
@@ -43,10 +48,10 @@ class SecureFileStorage (
      *         ([java.io.FileNotFoundException], [java.security.GeneralSecurityException], etc.).
      */
 
-    suspend fun readBytes(filename: String, directory: File? = null): Result<ByteArray> = withContext(Dispatchers.IO) {
+    override suspend fun readBytes(fileName: String, directory: File?): Result<ByteArray> = withContext(Dispatchers.IO) {
         runCatching {
             val targetDir = directory ?: defaultDirectory
-            val file = File(targetDir, filename)
+            val file = File(targetDir, fileName)
 
             if (!file.exists()) {
                 throw NoSuchFileException(file, reason = "Encrypted file does not exist.")
@@ -61,11 +66,11 @@ class SecureFileStorage (
      *
      * @param fileName The name of the encrypted file to read.
      * @param directory Optional directory where the file is stored. Falls back to [defaultDirectory] if null.
-     * @param charset The character set used to decode the plaintext bytes. Defaults to [StandardCharsets.UTF_8].
+     * @param charset The character set used to decode the plaintext bytes. Defaults to [Charsets.UTF_8].
      * @return [Result] containing the decrypted text content, or the associated error.
      */
-    suspend fun readText(filename: String, directory: File? = null, charset: Charset = Charsets.UTF_8):
-            Result<String> = readBytes(filename,directory).map {bytes ->
+    override suspend fun readText(fileName: String, directory: File?, charset: Charset ):
+            Result<String> = readBytes(fileName,directory).map {bytes ->
         String(bytes, charset)
     }
 
@@ -80,10 +85,10 @@ class SecureFileStorage (
      * @param directory Optional target directory. Falls back to [defaultDirectory] if null.
      * @return [Result] indicating success ([Unit]) or wrapping any encountered I/O or crypto exception.
      */
-    suspend fun writeBytes(filename: String, content: ByteArray, directory: File? = null) = withContext(Dispatchers.IO) {
+    override suspend fun writeBytes(fileName: String, content: ByteArray, directory: File?) = withContext(Dispatchers.IO) {
         runCatching {
             val targetDir = directory ?: defaultDirectory
-            val file = File(targetDir, filename)
+            val file = File(targetDir, fileName)
 
             if(!targetDir.exists()){
                 targetDir.mkdirs()
@@ -104,11 +109,11 @@ class SecureFileStorage (
      * @param fileName The name of the file to create or overwrite.
      * @param content The text payload to encrypt and persist.
      * @param directory Optional target directory. Falls back to [defaultDirectory] if null.
-     * @param charset The character set used to encode the string into bytes. Defaults to [StandardCharsets.UTF_8].
+     * @param charset The character set used to encode the string into bytes. Defaults to [Charsets.UTF_8].
      * @return [Result] indicating success ([Unit]) or wrapping any encountered error.
      */
-    suspend fun writeText(filename: String, content: String, directory: File? = null, charset: Charset = Charsets.UTF_8):
-            Result<Unit> = writeBytes( filename, content.toByteArray(charset), directory)
+    override suspend fun writeText(fileName: String, content: String, directory: File?, charset: Charset):
+            Result<Unit> = writeBytes( fileName, content.toByteArray(charset), directory)
 
     /**
      * Deletes the specified encrypted file from storage.
@@ -117,7 +122,7 @@ class SecureFileStorage (
      * @param directory Optional directory where the file is stored. Falls back to [defaultDirectory] if null.
      * @return `true` if the file existed and was successfully deleted; `false` otherwise.
      */
-    suspend fun deleteFile(fileName: String, directory: File? = null) = withContext(Dispatchers.IO) {
+    override suspend fun deleteFile(fileName: String, directory: File? ) = withContext(Dispatchers.IO) {
         val targetDir = directory ?: defaultDirectory
         val file = File(targetDir, fileName)
 
@@ -131,7 +136,7 @@ class SecureFileStorage (
      * @param directory Optional directory to look into. Falls back to [defaultDirectory] if null.
      * @return `true` if the file exists; `false` otherwise.
      */
-    fun fileExists( fileName:String, directory: File? = null): Boolean {
+    override fun fileExists( fileName:String, directory: File? ): Boolean {
         val targetDir = directory ?: defaultDirectory
         return File(targetDir, fileName).exists()
     }

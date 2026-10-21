@@ -1,4 +1,4 @@
-package com.github.jragcer.securitycore.storage
+package com.github.jragcer.securitycore.internal.storage
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -6,6 +6,8 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
 import androidx.core.content.edit
+import com.github.jragcer.securitycore.api.storage.SecurePreferences
+import java.lang.reflect.Type
 
 /**
  * Thread-safe wrapper around [EncryptedSharedPreferences] for encrypted key-value persistence.
@@ -17,15 +19,16 @@ import androidx.core.content.edit
  * Keys and master encryption schemes are managed transparently by the Android Keystore via [MasterKey].
  * Additionally, JSON object serialization and deserialization are supported via [Gson].
  *
- * Instances must be created using the [SecurePreferences.create] factory method to catch
+ * Instances must be created using the [SecurePreferencesImpl.create] factory method to catch
  * and gracefully handle potential Keystore initialization failures.
  *
  * @property prefs The underlying [SharedPreferences] implementation (backed by [EncryptedSharedPreferences]).
  * @property gson The serializer instance used for complex object storage.
  */
-class SecurePreferences private constructor(@PublishedApi internal val prefs: SharedPreferences,
-                                            @PublishedApi internal val gson: Gson = Gson()
-)
+internal class SecurePreferencesImpl (
+    private val prefs: SharedPreferences,
+    private val gson: Gson = Gson()
+) : SecurePreferences
 {
     /**
      * Persists a string value associated with the specified key.
@@ -33,7 +36,7 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param key The preference key identifier.
      * @param value The text value to encrypt and store, or `null` to remove/clear the entry.
      */
-    fun putString(key: String, value: String?) {
+    override fun putString(key: String, value: String?) {
         prefs.edit { putString(key, value) }
     }
 
@@ -44,7 +47,7 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param defaultValue The fallback value if the key does not exist. Defaults to `null`.
      * @return The decrypted string value, or [defaultValue] if not found.
      */
-    fun getString(key: String, defaultValue: String? = null): String? {
+    override fun getString(key: String, defaultValue: String? ): String? {
         return prefs.getString(key, defaultValue)
     }
 
@@ -54,7 +57,7 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param key The preference key identifier.
      * @param value The boolean flag to encrypt and store.
      */
-    fun putBoolean(key: String, value: Boolean) {
+    override fun putBoolean(key: String, value: Boolean) {
         prefs.edit { putBoolean(key, value) }
     }
 
@@ -65,7 +68,7 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param defaultValue The fallback value if the key is not present. Defaults to `false`.
      * @return The decrypted boolean value, or [defaultValue] if not found.
      */
-    fun getBoolean(key: String, defaultValue: Boolean = false): Boolean {
+    override fun getBoolean(key: String, defaultValue: Boolean ): Boolean {
         return prefs.getBoolean(key, defaultValue)
     }
 
@@ -75,7 +78,7 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param key The preference key identifier.
      * @param value The integer to encrypt and store.
      */
-    fun putInt(key: String, value: Int) {
+    override fun putInt(key: String, value: Int) {
         prefs.edit { putInt(key, value) }
     }
 
@@ -86,7 +89,7 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param defaultValue The fallback value if the key is not present. Defaults to `0`.
      * @return The decrypted integer value, or [defaultValue] if not found.
      */
-    fun getInt(key: String, defaultValue: Int = 0): Int {
+    override fun getInt(key: String, defaultValue: Int): Int {
         return prefs.getInt(key, defaultValue)
     }
 
@@ -96,7 +99,7 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param key The preference key identifier.
      * @param value The long integer to encrypt and store.
      */
-    fun putLong(key: String, value: Long) {
+    override fun putLong(key: String, value: Long) {
         prefs.edit { putLong(key, value) }
     }
 
@@ -107,7 +110,7 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param defaultValue The fallback value if the key is not present. Defaults to `0L`.
      * @return The decrypted long value, or [defaultValue] if not found.
      */
-    fun getLong(key: String, defaultValue: Long = 0L): Long {
+    override fun getLong(key: String, defaultValue: Long ): Long {
         return prefs.getLong(key, defaultValue)
     }
 
@@ -117,7 +120,7 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param key The preference key identifier.
      * @param value The float value to encrypt and store.
      */
-    fun putFloat(key: String, value: Float) {
+    override fun putFloat(key: String, value: Float) {
         prefs.edit { putFloat(key, value) }
     }
 
@@ -128,18 +131,17 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param defaultValue The fallback value if the key is not present. Defaults to `0.0f`.
      * @return The decrypted float value, or [defaultValue] if not found.
      */
-    fun getFloat(key: String, defaultValue: Float = 0.0f): Float {
+    override fun getFloat(key: String, defaultValue: Float ): Float {
         return prefs.getFloat(key, defaultValue)
     }
 
     /**
      * Persists an arbitrary serializable object by converting it to JSON prior to encryption.
      *
-     * @param T The expected data type of the object.
      * @param key The preference key identifier.
      * @param value The object instance to serialize and encrypt, or `null` to clear the entry.
      */
-    inline fun <reified T> putObject(key: String, value: T?) {
+    override fun <T> putObject(key: String, value: T?) {
         if (value == null) {
             remove(key)
         } else {
@@ -151,14 +153,14 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
     /**
      * Retrieves and deserializes a previously encrypted JSON object.
      *
-     * @param T The type to deserialize the target JSON into.
      * @param key The preference key identifier.
+     * @param type The type to deserialize the target JSON into.
      * @return The parsed object instance of type [T], or `null` if the key is missing or deserialization fails.
      */
-    inline fun <reified T> getObject(key: String): T? {
+    override fun <T> getObject(key: String, type: Type): T? {
         val json = getString(key, null) ?: return null
         return runCatching {
-            gson.fromJson(json, T::class.java)
+            gson.fromJson<T>(json, type)
         }.getOrNull()
     }
 
@@ -168,33 +170,28 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
      * @param key The preference key identifier to check.
      * @return `true` if the preference exists, `false` otherwise.
      */
-    fun contains(key: String): Boolean = prefs.contains(key)
+    override fun contains(key: String): Boolean = prefs.contains(key)
 
     /**
      * Removes an entry from storage.
      *
      * @param key The preference key identifier to remove.
      */
-    fun remove(key: String) {
+    override fun remove(key: String) {
         prefs.edit { remove(key) }
     }
 
     /**
      * Clears all encrypted key-value pairs stored in this preferences file.
      */
-    fun clear() {
+    override fun clear() {
         prefs.edit { clear() }
     }
-
-    /**
-     * Exposes the underlying [SharedPreferences] instance if raw access is required.
-     */
-    fun getRawSharedPreferences(): SharedPreferences = prefs
 
     companion object {
 
         /**
-         * Factory function that securely initializes [SecurePreferences].
+         * Factory function that securely initializes [SecurePreferencesImpl].
          *
          * Generates or retrieves a hardware-backed [MasterKey] via Android Keystore and instantiates
          * the underlying [EncryptedSharedPreferences].
@@ -221,7 +218,7 @@ class SecurePreferences private constructor(@PublishedApi internal val prefs: Sh
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-            SecurePreferences(sharedPrefs, gson)
+            SecurePreferencesImpl(sharedPrefs, gson)
         }
     }
 }

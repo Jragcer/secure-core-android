@@ -3,6 +3,9 @@ package com.github.jragcer.securitycore.storage
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.github.jragcer.securitycore.SecureCore
+import com.github.jragcer.securitycore.api.storage.*
+import com.github.jragcer.securitycore.api.storage.SecurePreferences
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -23,7 +26,7 @@ class SecurePreferencesTest {
     @Before
     fun setUp(){
         context = ApplicationProvider.getApplicationContext()
-        val result = SecurePreferences.create(context, "test_prefs")
+        val result = SecureCore.createSecurePreferences(context,"test_prefs")
 
         // Si falla, imprime la traza real para ver la causa raíz:
         result.onFailure { error ->
