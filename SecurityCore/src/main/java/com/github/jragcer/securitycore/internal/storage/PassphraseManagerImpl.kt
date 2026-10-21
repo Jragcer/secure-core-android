@@ -1,10 +1,11 @@
-package com.github.jragcer.securitycore.storage
+package com.github.jragcer.securitycore.internal.storage
 
 import android.content.Context
 import java.io.File
 import java.security.SecureRandom
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
+import com.github.jragcer.securitycore.api.storage.PassphraseManager
 
 /**
  * A secure manager for generating and persisting passphrases and master keys.
@@ -19,10 +20,14 @@ import androidx.security.crypto.MasterKey
  * @property storageDir The directory where the encrypted file will be stored. By default, it uses [Context.getNoBackupFilesDir]
  *                      to prevent keys from being inadvertently included in cloud backups (Google Cloud Backup).
  */
-class PassphraseManager (
-    private val context: Context,
+internal class PassphraseManagerImpl (
+    private val context: Context
+) : PassphraseManager{
+
+    /**
+     * The default directory where encrypted files are stored.
+     */
     private val storageDir: File = context.noBackupFilesDir
-){
 
     /**
      * Hardware-backed master key in the Android Keystore using the AES256-GCM scheme.
@@ -43,18 +48,22 @@ class PassphraseManager (
      *
      * @param filename The name of the encrypted file that will contain the key. Defaults to `"passphrase.bin"`.
      * @param length Key length in bytes. Defaults to `32` bytes (256 bits).
+     * @param directory Optional target directory. Falls back to [Context.getNoBackupFilesDir] if null.
      * @return A [Result] encapsulating the decrypted [ByteArray] upon success,
      *         or the corresponding exception ([java.io.IOException], [java.security.GeneralSecurityException]) in the event of an error.
      *
      */
-    fun getOrCreatePassphrase(filename: String = "passphrase.bin",
-                              length: Int = 32): Result<ByteArray> = runCatching {
+    override fun getOrCreatePassphrase(
+        filename: String,
+        length: Int,
+        directory: File?): Result<ByteArray> = runCatching {
 
-        if(!storageDir.exists()){
-            storageDir.mkdirs()
+        val targetDir = directory ?: storageDir
+        if (!targetDir.exists()) {
+            targetDir.mkdirs()
         }
 
-        val file = File(storageDir, filename)
+        val file = File(targetDir, filename)
 
         if(file.exists() && file.length() > 0L){
             try {

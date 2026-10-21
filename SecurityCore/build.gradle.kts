@@ -63,8 +63,10 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.biometric)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.core.ktx)
     implementation(libs.material)
     implementation(libs.androidx.security.crypto)
     implementation(libs.gson)

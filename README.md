@@ -1,32 +1,42 @@
-# SecureCore
+# SecureCore Android Library
 
-![Android CI](https://github.com/jragcer/SecuritySdkDemo/actions/workflows/build.yaml/badge.svg)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-blue.svg)](https://kotlinlang.org)
+[![Android CI](https://github.com/Jragcer/secure-core-android/actions/workflows/build.yaml/badge.svg)](https://github.com/Jragcer/secure-core-android/actions/workflows/build.yaml)
+[![Latest Release](https://img.shields.io/badge/Release-1.1.0-blue.svg)](https://github.com/jragcer/SecuritySdkDemo/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
+[![Kotlin Version](https://img.shields.io/badge/Kotlin-2.0.21-blue.svg)](https://kotlinlang.org)
+[![Min SDK](https://img.shields.io/badge/Min%20SDK-24-brightgreen.svg)](https://android.com)
 
-A robust, enterprise-grade Android security library written in Kotlin.  
-*Una biblioteca de seguridad para Android robusta y de nivel empresarial desarrollada en Kotlin.*
-
----
-
-## Language / Idioma
-- [English](#english)
-- [Español](#español)
+*Read this in [English](#english) | Léelo en [Español](#español)*
 
 ---
 
 <a name="english"></a>
 ## English
 
-### Overview
-`SecureCore` simplifies the adoption of high-standard cryptographic persistence, hardware-backed key management, and modern secure storage patterns across Android applications.
+`SecureCore` is an enterprise-grade Android security SDK engineered to simplify cryptography, secure local storage, biometric authentication, and hardware integrity validations with minimal boilerplate.
+> **Current Version:** `1.1.0` (See [CHANGELOG.md](CHANGELOG.md) for full release details)
+
+### Architecture
+
+`SecureCore` enforces a strict **API / Internal / Factory** segregation across all modules:
+* **`api/`**: Public interfaces (`PassphraseManager`, `SecurePreferences`, `SecureFileStorage`, `BiometricAuthManager`) and strongly-typed models (`BiometricResult`, `BiometricStatus`). Consumers only interact with these contracts.
+* **`internal/`**: All implementations (`*Impl`) are encapsulated using Kotlin's `internal` visibility modifier, protecting developers from breaking platform changes and isolating third-party/OS dependencies.
+* **`SecureCore` (Factory)**: Single unified facade providing factory initializers (`createPassphraseManager()`, `createSecurePreferences()`, `createBiometricAuthManager()`, etc.) and hardware integrity helpers.
 
 ### Features
-- **Hardware-Backed Master Key**: Integrates transparently with the Android Keystore (TEE / StrongBox) using `AES-256 GCM`.
-- **`PassphraseManager`**: Generates and persists high-entropy passphrases encrypted on disk. It automatically discards `0x00` (null bytes), guaranteeing direct compatibility with native database engines like SQLCipher.
-- **`SecurePreferences`**: Type-safe encrypted key-value storage powered by `EncryptedSharedPreferences` (`AES-256 SIV` for keys and `AES-256 GCM` for values) with out-of-the-box JSON serialization for custom models via Gson.
-- **`SecureFileStorage`**: High-performance encrypted file operations running off the main thread (`Dispatchers.IO`) through Kotlin Coroutines.
-- **Resilient Error Handling**: Uses Kotlin's `Result<T>` pattern across all operations to prevent uncaught cryptographic crashes.
+* **Hardware-Backed Master Key**: Integrates transparently with the Android Keystore (TEE / StrongBox) using `AES-256 GCM`.
+* **`PassphraseManagerImpl`**: Generates and persists high-entropy passphrases encrypted on disk. It automatically discards `0x00` (null bytes), guaranteeing direct compatibility with native database engines like SQLCipher.
+* **`SecurePreferencesImpl`**: Type-safe encrypted key-value storage powered by `EncryptedSharedPreferences` (`AES-256 SIV` for keys and `AES-256 GCM` for values) with out-of-the-box JSON serialization for custom models via Gson.
+* **`SecureFileStorageImpl`**: High-performance encrypted file operations running off the main thread (`Dispatchers.IO`) through Kotlin Coroutines.
+* **Hardware Attestation**: StrongBox Keymaster detection on compatible hardware (Android 9.0+ / API 28+).
+* **Resilient Error Handling**: Uses Kotlin's `Result<T>` pattern across all operations to prevent uncaught cryptographic crashes.
+* **Biometric Authentication (`api/BiometricAuthManager`)**:
+    * Unified hardware readiness and enrollment verification via `canAuthenticate()`.
+    * Biometric dialog orchestration with optional device credential fallback (PIN, pattern, password).
+    * Cryptographic-bound authentication (`authenticateWithCrypto()`) backed by `BiometricPrompt.CryptoObject` and the Android Keystore.
+    * Exhaustive sealed result models (`BiometricResult.Success`, `BiometricResult.Error`, `BiometricResult.Failed`).
+
 
 ### Installation
 Add the library module to your project's `settings.gradle.kts`:
@@ -43,8 +53,13 @@ dependencies {
     
     // Coroutines support for asynchronous file storage
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    // Fragment KTX required by AndroidX BiometricPrompt hosting activity
+    implementation("androidx.fragment:fragment-ktx:1.8.6")
 }
 ```
+
+Ensure your project targets `minSdk = 24` or higher.
 
 ### Quick Start
 
@@ -63,7 +78,7 @@ passphraseManager.getOrCreatePassphrase(filename = "db_passphrase.bin", length =
     }
 ```
 
-#### 2. Encrypted Key-Value Storage (`SecurePreferences`)
+#### 2. Encrypted Key-Value Storage (`SecurePreferencesImpl`)
 ```kotlin
 import com.github.jragcer.securitycore.storage.SecurePreferences
 
@@ -87,7 +102,7 @@ SecurePreferences.create(context, fileName = "app_secure_prefs")
     }
 ```
 
-#### 3. Encrypted File Persistence (`SecureFileStorage`)
+#### 3. Encrypted File Persistence (`SecureFileStorageImpl`)
 ```kotlin
 import androidx.lifecycle.lifecycleScope
 import com.github.jragcer.securitycore.storage.SecureFileStorage
@@ -118,10 +133,59 @@ lifecycleScope.launch {
 }
 ```
 
+#### 4. StrongBox Hardware Check
+```kotlin
+import com.github.jragcer.securitycore.SecureCore
+
+val hasStrongBox = SecureCore.isStrongBoxSupported(context)
+```
+
+#### 5. Biometric Authentication
+```kotlin
+import com.github.jragcer.securitycore.SecureCore
+import com.github.jragcer.securitycore.api.BiometricResult
+import com.github.jragcer.securitycore.api.BiometricStatus
+
+val biometricManager = SecureCore.createBiometricAuthManager(context)
+
+when (val status = biometricManager.canAuthenticate(allowDeviceCredential = true)) {
+    is BiometricStatus.Ready -> {
+        biometricManager.authenticate(
+            activity = this, // FragmentActivity
+            title = "Biometric Verification",
+            subtitle = "Authenticate to unlock secure operations",
+            allowDeviceCredential = true
+        ) { result ->
+            when (result) {
+                is BiometricResult.Success -> {
+                    // Access granted
+                }
+                is BiometricResult.Error -> {
+                    // Handle error: result.errorCode, result.errorMessage
+                }
+                is BiometricResult.Failed -> {
+                    // Biometric rejected
+                }
+            }
+        }
+    }
+    is BiometricStatus.NotEnrolled -> {
+        // Prompt user to register credentials in System Settings
+    }
+    else -> {
+        // Biometrics unavailable or unsupported
+    }
+}
+```
+
 ### Testing
-The library includes an instrumented test suite running against real Keystore instances (`src/androidTest`):
+Run unit tests and instrumented tests via Gradle:
 
 ```bash
+# Unit tests
+./gradlew test
+
+# Instrumented tests against real Keystore instances
 ./gradlew connectedAndroidTest
 ```
 
@@ -132,21 +196,42 @@ The library includes an instrumented test suite running against real Keystore in
 | **Passphrase Engine** | `EncryptedFile` + Android Keystore | `AES-256 GCM HKDF 4KB` |
 | **Preference Engine** | `EncryptedSharedPreferences` | Keys: `AES-256 SIV`<br>Values: `AES-256 GCM` |
 | **File Engine** | `EncryptedFile` + IO Streams | `AES-256 GCM HKDF 4KB` |
+| **Biometric Engine** | AndroidX `BiometricPrompt` | Hardware-backed Biometric / CryptoObject |
+
+### License
+Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
 <a name="español"></a>
 ## Español
 
-### Descripción general
-`SecureCore` simplifica la adopción de persistencia criptográfica con altos estándares, gestión de claves respaldada por hardware y patrones modernos de almacenamiento seguro en aplicaciones Android.
+`SecureCore` es un SDK de seguridad para Android de nivel empresarial diseñado para simplificar tareas de criptografía, persistencia segura, autenticación biométrica y validación de hardware con el mínimo código boilerplate.
+
+> **Versión actual:** `1.1.0` (Consulta [CHANGELOG.md](CHANGELOG.md) para ver los detalles de la versión)
+
+### Arquitectura
+
+`SecureCore` aplica una estricta segregación bajo el patrón **API / Internal / Factory** en todos sus módulos:
+
+- **`api/`**: Interfaces públicas (`PassphraseManager`, `SecurePreferences`, `SecureFileStorage`, `BiometricAuthManager`) y modelos fuertemente tipados (`BiometricResult`, `BiometricStatus`). Los consumidores únicamente interactúan con estos contratos.
+
+- **`internal/`**: Todas las implementaciones (`*Impl`) quedan encapsuladas mediante el modificador de visibilidad `internal` de Kotlin, protegiendo a los desarrolladores de cambios de plataforma que rompan compatibilidad y aislando las dependencias del sistema operativo y de terceros.
+
+- **`SecureCore` (Factoría)**: Fachada única y unificada que provee métodos factoría de inicialización (`createPassphraseManager()`, `createSecurePreferences()`, `createBiometricAuthManager()`, etc.) y herramientas de validación de integridad del hardware.
 
 ### Características
 - **Clave maestra respaldada por hardware**: Integración transparente con Android Keystore (TEE / StrongBox) mediante `AES-256 GCM`.
-- **`PassphraseManager`**: Genera y persiste frases de contraseña con alta entropía cifradas en disco. Descarta automáticamente los bytes nulos (`0x00`), asegurando compatibilidad directa con motores de base de datos nativos como SQLCipher.
-- **`SecurePreferences`**: Almacenamiento clave-valor cifrado con tipado estricto mediante `EncryptedSharedPreferences` (`AES-256 SIV` para claves y `AES-256 GCM` para valores), con serialización JSON integrada para modelos personalizados con Gson.
-- **`SecureFileStorage`**: Operaciones seguras sobre ficheros ejecutadas fuera del hilo principal (`Dispatchers.IO`) mediante corrutinas de Kotlin.
-- **Manejo resiliente de errores**: Implementa el patrón funcional `Result<T>` en todas sus operaciones para prevenir cierres inesperados de la aplicación por errores criptográficos.
+- **`PassphraseManagerImpl`**: Genera y persiste frases de contraseña con alta entropía cifradas en disco. Descarta automáticamente los bytes nulos (`0x00`), asegurando compatibilidad directa con motores de base de datos nativos como SQLCipher.
+- **`SecurePreferencesImpl`**: Almacenamiento clave-valor cifrado con tipado estricto mediante `EncryptedSharedPreferences` (`AES-256 SIV` para claves y `AES-256 GCM` para valores), con serialización JSON integrada para modelos personalizados con Gson.
+- **`SecureFileStorageImpl`**: Operaciones seguras sobre ficheros ejecutadas fuera del hilo principal (`Dispatchers.IO`) mediante corrutinas de Kotlin.
+- **Atestación de Hardware**: Detección de chips dedicados StrongBox Keymaster en hardware compatible (Android 9.0+ / API 28+).
+- **Manejo resiliente de errores**: Implementa el patrón funcional `Result<T>` en todas sus operaciones para prevenir cierres inesperados por excepciones criptográficas.
+- **Autenticación Biométrica (`api/BiometricAuthManager`)**:
+    - Comprobación de disponibilidad de hardware y credenciales registradas mediante `canAuthenticate()`.
+    - Despliegue de prompts biométricos nativos con soporte para credenciales del dispositivo (PIN, patrón, contraseña).
+    - Autenticación vinculada a operaciones criptográficas (`authenticateWithCrypto()`) mediante `BiometricPrompt.CryptoObject` y Android Keystore.
+    - Modelado tipado exhaustivo (`BiometricResult.Success`, `BiometricResult.Error`, `BiometricResult.Failed`).
 
 ### Instalación
 Añade el módulo de la biblioteca a tu archivo `settings.gradle.kts`:
@@ -163,6 +248,9 @@ dependencies {
     
     // Soporte de corrutinas para operaciones asíncronas de ficheros
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    
+    // Fragment KTX requerido por la actividad anfitriona de BiometricPrompt
+    implementation("androidx.fragment:fragment-ktx:1.8.6")
 }
 ```
 
@@ -183,7 +271,7 @@ passphraseManager.getOrCreatePassphrase(filename = "db_passphrase.bin", length =
     }
 ```
 
-#### 2. Almacenamiento clave-valor cifrado (`SecurePreferences`)
+#### 2. Almacenamiento clave-valor cifrado (`SecurePreferencesImpl`)
 ```kotlin
 import com.github.jragcer.securitycore.storage.SecurePreferences
 
@@ -207,7 +295,7 @@ SecurePreferences.create(context, fileName = "app_secure_prefs")
     }
 ```
 
-#### 3. Persistencia de ficheros cifrados (`SecureFileStorage`)
+#### 3. Persistencia de ficheros cifrados (`SecureFileStorageImpl`)
 ```kotlin
 import androidx.lifecycle.lifecycleScope
 import com.github.jragcer.securitycore.storage.SecureFileStorage
@@ -237,11 +325,59 @@ lifecycleScope.launch {
         }
 }
 ```
+#### 4. Comprobación de hardware StrongBox
+```kotlin
+import com.github.jragcer.securitycore.SecureCore
+
+val soportaStrongBox = SecureCore.isStrongBoxSupported(context)
+```
+
+#### 5. Autenticación Biométrica
+```kotlin
+import com.github.jragcer.securitycore.SecureCore
+import com.github.jragcer.securitycore.api.BiometricResult
+import com.github.jragcer.securitycore.api.BiometricStatus
+
+val biometricManager = SecureCore.createBiometricAuthManager(context)
+
+when (val status = biometricManager.canAuthenticate(allowDeviceCredential = true)) {
+    is BiometricStatus.Ready -> {
+        biometricManager.authenticate(
+            activity = this, // FragmentActivity
+            title = "Verificación Biométrica",
+            subtitle = "Autentícate para realizar operaciones seguras",
+            allowDeviceCredential = true
+        ) { result ->
+            when (result) {
+                is BiometricResult.Success -> {
+                    // Acceso concedido
+                }
+                is BiometricResult.Error -> {
+                    // Gestión de errores: result.errorCode, result.errorMessage
+                }
+                is BiometricResult.Failed -> {
+                    // Huella o rostro no reconocido
+                }
+            }
+        }
+    }
+    is BiometricStatus.NotEnrolled -> {
+        // Redirigir a Ajustes para registrar credenciales
+    }
+    else -> {
+        // Biometría no disponible o no compatible
+    }
+}
+```
 
 ### Pruebas (Testing)
-La capa de persistencia se apoya en los proveedores de Android Keystore del sistema operativo. Por ello, la suite de pruebas está configurada como instrumentada bajo `src/androidTest`:
+Ejecuta la suite de pruebas unitarias o instrumentadas:
 
 ```bash
+# Pruebas unitarias
+./gradlew test
+
+# Pruebas instrumentadas con Android Keystore real
 ./gradlew connectedAndroidTest
 ```
 
@@ -252,3 +388,9 @@ La capa de persistencia se apoya en los proveedores de Android Keystore del sist
 | **Motor de contraseñas** | `EncryptedFile` + Android Keystore | `AES-256 GCM HKDF 4KB` |
 | **Motor de preferencias** | `EncryptedSharedPreferences` | Claves: `AES-256 SIV`<br>Valores: `AES-256 GCM` |
 | **Motor de ficheros** | `EncryptedFile` + Flujos de E/S | `AES-256 GCM HKDF 4KB` |
+| **Motor biométrico** | AndroidX `BiometricPrompt` | Biometría respaldada por hardware / CryptoObject |
+
+### Licencia
+Distribuido bajo la licencia MIT. Consulta el archivo `LICENSE` para obtener más información.
+
+---

@@ -3,6 +3,14 @@ package com.github.jragcer.securitycore
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import com.github.jragcer.securitycore.api.biometric.BiometricAuthManager
+import com.github.jragcer.securitycore.api.storage.PassphraseManager
+import com.github.jragcer.securitycore.api.storage.SecureFileStorage
+import com.github.jragcer.securitycore.api.storage.SecurePreferences
+import com.github.jragcer.securitycore.internal.biometric.BiometricAuthManagerImpl
+import com.github.jragcer.securitycore.internal.storage.PassphraseManagerImpl
+import com.github.jragcer.securitycore.internal.storage.SecureFileStorageImpl
+import com.github.jragcer.securitycore.internal.storage.SecurePreferencesImpl
 
 /**
  * Entry point providing library metadata and runtime information.
@@ -32,5 +40,36 @@ object SecureCore {
         } else {
             false
         }
+    }
+
+    /**
+     * Creates an instance of [BiometricAuthManager] backed by AndroidX BiometricPrompt.
+     */
+    fun createBiometricAuthManager(context: Context): BiometricAuthManager{
+        return BiometricAuthManagerImpl(context.applicationContext)
+    }
+
+    /**
+     * Creates an instance of [PassphraseManager] backed by Android Keystore.
+     */
+    fun createPassphraseManager(context: Context): PassphraseManager {
+        return PassphraseManagerImpl(context.applicationContext)
+    }
+
+    /**
+     * Creates an instance of [SecurePreferences] backed by Android Keystore.
+     */
+    fun createSecurePreferences(
+        context: Context,
+        fileName: String = "app_secure_prefs"
+    ): Result<SecurePreferences> {
+        return SecurePreferencesImpl.create(context.applicationContext, fileName)
+    }
+
+    /**
+     * Creates an instance of [SecureFileStorage] backed by Android Keystore.
+     */
+    fun createSecureFileStorage(context: Context): SecureFileStorage {
+        return SecureFileStorageImpl(context.applicationContext)
     }
 }
