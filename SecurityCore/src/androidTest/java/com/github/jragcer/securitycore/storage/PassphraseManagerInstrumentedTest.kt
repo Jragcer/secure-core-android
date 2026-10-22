@@ -17,7 +17,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 @RunWith(AndroidJUnit4::class)
-class PassphraseManagerTest {
+class PassphraseManagerInstrumentedTest {
     private lateinit var manager: PassphraseManager
     private lateinit var context: Context
     private lateinit var testDir: File

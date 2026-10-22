@@ -17,7 +17,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class SecurePreferencesTest {
+class SecurePreferencesInstrumentedTest {
     private lateinit var securePrefs: SecurePreferences
     private lateinit var context: Context
 

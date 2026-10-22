@@ -13,11 +13,13 @@ appcompat = "1.8.0"
 kotlinxCoroutinesTest = "1.10.2"
 material = "1.14.0"
 robolectric = "4.17"
-securitycore = "1.1.0"
+securitycore = "1.2.0"
 runtime = "1.12.1"
 kotlin = "2.0.21"
 material3 = "1.4.0"
 coreKtxVersion = "1.7.0"
+mockito = "5.12.0"
+mockitoKotlin = "5.4.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -44,6 +46,8 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 androidx-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "coreKtxVersion" }
+mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
+mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version.ref = "mockitoKotlin" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

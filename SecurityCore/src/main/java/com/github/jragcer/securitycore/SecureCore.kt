@@ -4,10 +4,12 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import com.github.jragcer.securitycore.api.biometric.BiometricAuthManager
+import com.github.jragcer.securitycore.api.integrity.IntegrityManager
 import com.github.jragcer.securitycore.api.storage.PassphraseManager
 import com.github.jragcer.securitycore.api.storage.SecureFileStorage
 import com.github.jragcer.securitycore.api.storage.SecurePreferences
 import com.github.jragcer.securitycore.internal.biometric.BiometricAuthManagerImpl
+import com.github.jragcer.securitycore.internal.integrity.IntegrityManagerImpl
 import com.github.jragcer.securitycore.internal.storage.PassphraseManagerImpl
 import com.github.jragcer.securitycore.internal.storage.SecureFileStorageImpl
 import com.github.jragcer.securitycore.internal.storage.SecurePreferencesImpl
@@ -71,5 +73,15 @@ object SecureCore {
      */
     fun createSecureFileStorage(context: Context): SecureFileStorage {
         return SecureFileStorageImpl(context.applicationContext)
+    }
+
+    /**
+     * Creates an instance of [IntegrityManager] to assess runtime environment security.
+     *
+     * @param context The application or activity context.
+     * @return Configured [IntegrityManager] instance.
+     */
+    fun createIntegrityManager(context: Context): IntegrityManager {
+        return IntegrityManagerImpl(context.applicationContext)
     }
 }

@@ -43,6 +43,11 @@ android {
             withJavadocJar()
         }
     }
+    testOptions {
+        unitTests.all {
+            it.jvmArgs("-Dnet.bytebuddy.experimental=true", "-XX:+EnableDynamicAgentLoading")
+        }
+    }
 
     lint {
         // Abort the build if any severe or critical errors are detected
@@ -72,6 +77,8 @@ dependencies {
     implementation(libs.gson)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.kotlin)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.runner)

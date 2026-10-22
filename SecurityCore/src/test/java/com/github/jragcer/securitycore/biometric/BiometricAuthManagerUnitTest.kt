@@ -1,8 +1,9 @@
-package com.github.jragcer.securitycore
+package com.github.jragcer.securitycore.biometric
 
 import android.content.Context
 import androidx.biometric.BiometricPrompt
 import androidx.test.core.app.ApplicationProvider
+import com.github.jragcer.securitycore.SecureCore
 import com.github.jragcer.securitycore.api.biometric.BiometricResult
 import com.github.jragcer.securitycore.api.biometric.BiometricStatus
 import com.github.jragcer.securitycore.internal.biometric.BiometricAuthManagerImpl
@@ -17,7 +18,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
-class BiometricAuthManagerTest {
+class BiometricAuthManagerUnitTest {
     private lateinit var context: Context
     private lateinit var manager: BiometricAuthManagerImpl
 

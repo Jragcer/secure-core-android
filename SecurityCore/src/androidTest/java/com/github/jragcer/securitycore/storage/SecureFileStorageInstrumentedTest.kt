@@ -16,7 +16,7 @@ import org.junit.runner.RunWith
 import java.io.File
 
 @RunWith(AndroidJUnit4::class)
-class SecureFileStorageTest {
+class SecureFileStorageInstrumentedTest {
 
     private lateinit var storage: SecureFileStorage
     private lateinit var context: Context
