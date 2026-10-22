@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-10-22
+
+### Added
+- **Integrity & Threat Detection Module**:
+  - `RootDetector`: Heuristic detection of `su` binaries, test-keys, dangerous mount flags, and root management packages.
+  - `EmulatorDetector`: Virtual environment identification via QEMU drivers, pipes, and build hardware properties.
+  - `HookDetector`: Memory map scanning (`/proc/self/maps`), debugger attachment flags, and Frida/Xposed signature verification.
+  - `IntegrityManager` & `IntegrityManagerImpl`: Composite threat orchestration producing structured `IntegrityReport` summaries.
+  - Factory entrypoint in `SecureCore.createIntegrityManager(context)`.
+  - Comprehensive unit and instrumented test suites.
+  - UI integration inside `SecurityDemoScreen`.
+
+---
+
 ## [1.1.0] - 2026-10-21
 
 ### Added

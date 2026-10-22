@@ -66,6 +66,7 @@ class MainActivity: FragmentActivity() {
         val passphraseManager = remember { SecureCore.createPassphraseManager(context) }
         val securePreferences = remember { SecureCore.createSecurePreferences(context).getOrNull() }
         val secureFileStorage = remember { SecureCore.createSecureFileStorage(context) }
+        val integrityManager = remember { SecureCore.createIntegrityManager(context) }
 
         LaunchedEffect(Unit) {
             if (SecureCore.isStrongBoxSupported(applicationContext)) {
@@ -98,6 +99,51 @@ class MainActivity: FragmentActivity() {
                         fontFamily = FontFamily.Monospace
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Device & Runtime Integrity",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    val report = integrityManager.getIntegrityReport()
+                    val summary = buildString {
+                        appendLine("Integrity Status: ${if (report.isSecure) "SECURE" else "THREATS DETECTED"}")
+                        if (report.detectedThreats.isNotEmpty()) {
+                            appendLine("Threats: ${report.detectedThreats.joinToString(", ")}")
+                        }
+                        appendLine("Details:")
+                        report.details.forEach { (check, detected) ->
+                            appendLine(" - $check: $detected")
+                        }
+                    }
+                    statusText = summary.trimEnd()
+                }
+            ) {
+                Text("Run Integrity Assessment")
+            }
+
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    val isRooted = integrityManager.isRooted()
+                    val isEmulator = integrityManager.isEmulator()
+                    val isHooked = integrityManager.isDebuggerOrHookingActive()
+                    val compromised = integrityManager.isDeviceCompromised()
+
+                    statusText = "Fast Heuristics:\n" +
+                            " • Device Compromised: $compromised\n" +
+                            " • Root Detected: $isRooted\n" +
+                            " • Emulator Detected: $isEmulator\n" +
+                            " • Debugger/Hook Active: $isHooked"
+                }
+            ) {
+                Text("Quick Heuristic Checks")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
