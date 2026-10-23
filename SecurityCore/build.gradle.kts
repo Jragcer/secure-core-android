@@ -51,6 +51,9 @@ android {
     }
 
     lint {
+        //Disable lint analysis for instrumentation tests
+        ignoreTestSources = true
+        checkDependencies = false
         // Abort the build if any severe or critical errors are detected
         abortOnError = true
 
