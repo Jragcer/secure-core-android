@@ -13,7 +13,7 @@ appcompat = "1.8.0"
 kotlinxCoroutinesTest = "1.10.2"
 material = "1.14.0"
 robolectric = "4.17"
-securitycore = "1.2.0"
+securitycore = "1.3.0"
 runtime = "1.12.1"
 kotlin = "2.0.21"
 material3 = "1.4.0"
@@ -27,6 +27,7 @@ androidx-biometric = { group = "androidx.biometric", name = "biometric", version
 androidx-core = { module = "androidx.test:core", version.ref = "core" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragmentKtx" }
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-material3 = { module = "androidx.compose.material3:material3" }
 androidx-runner = { module = "androidx.test:runner", version.ref = "core" }
 androidx-ui = { module = "androidx.compose.ui:ui" }
