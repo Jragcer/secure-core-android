@@ -5,12 +5,14 @@ import android.content.pm.PackageManager
 import android.os.Build
 import com.github.jragcer.securitycore.api.biometric.BiometricAuthManager
 import com.github.jragcer.securitycore.api.integrity.IntegrityManager
+import com.github.jragcer.securitycore.api.screen.ScreenProtectionManager
 import com.github.jragcer.securitycore.api.storage.PassphraseManager
 import com.github.jragcer.securitycore.api.storage.SecureFileStorage
 import com.github.jragcer.securitycore.api.storage.SecurePreferences
 import com.github.jragcer.securitycore.api.tamper.TamperProtectionManager
 import com.github.jragcer.securitycore.internal.biometric.BiometricAuthManagerImpl
 import com.github.jragcer.securitycore.internal.integrity.IntegrityManagerImpl
+import com.github.jragcer.securitycore.internal.screen.ScreenProtectionManagerImpl
 import com.github.jragcer.securitycore.internal.storage.PassphraseManagerImpl
 import com.github.jragcer.securitycore.internal.storage.SecureFileStorageImpl
 import com.github.jragcer.securitycore.internal.storage.SecurePreferencesImpl
@@ -96,5 +98,15 @@ object SecureCore {
      */
     fun createTamperProtectionManager(context: Context): TamperProtectionManager {
         return TamperProtectionManagerImpl(context.applicationContext)
+    }
+
+    /**
+     * Creates an instance of [ScreenProtectionManager] to control
+     * screen security, screenshot blocking, and app switcher privacy.
+     *
+     * @return An instantiated [ScreenProtectionManager].
+     */
+    fun createScreenProtectionManager(): ScreenProtectionManager {
+        return ScreenProtectionManagerImpl()
     }
 }

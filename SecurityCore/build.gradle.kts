@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.compose)
 }
 
 android {
@@ -68,13 +69,19 @@ android {
 }
 
 dependencies {
+    debugImplementation(libs.ui.test.manifest)
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.ui.test.junit4)
     implementation(libs.core.ktx)
     implementation(libs.material)
     implementation(libs.androidx.security.crypto)
     implementation(libs.gson)
+    implementation(libs.material3)
+    val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.mockito.core)

@@ -1,7 +1,7 @@
 # SecureCore Android Library
 
 [![Android CI](https://github.com/Jragcer/secure-core-android/actions/workflows/build.yaml/badge.svg)](https://github.com/Jragcer/secure-core-android/actions/workflows/build.yaml)
-[![Latest Release](https://img.shields.io/badge/Release-1.3.0-blue.svg)](https://github.com/jragcer/SecuritySdkDemo/releases)
+[![Latest Release](https://img.shields.io/badge/Release-1.4.0-blue.svg)](https://github.com/jragcer/SecuritySdkDemo/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
 [![Kotlin Version](https://img.shields.io/badge/Kotlin-2.0.21-blue.svg)](https://kotlinlang.org)
@@ -14,15 +14,15 @@
 <a name="english"></a>
 ## English
 
-`SecureCore` is an enterprise-grade Android security SDK engineered to simplify cryptography, secure local storage, biometric authentication, runtime integrity assessment, APK tamper protection, and hardware validations with minimal boilerplate.
-> **Current Version:** `1.3.0` (See [CHANGELOG.md](CHANGELOG.md) for full release details)
+`SecureCore` is an enterprise-grade Android security SDK engineered to simplify cryptography, secure local storage, biometric authentication, runtime integrity assessment, APK tamper protection, screen privacy enforcement, and hardware validations with minimal boilerplate.
+> **Current Version:** `1.4.0` (See [CHANGELOG.md](CHANGELOG.md) for full release details)
 
 ### Architecture
 
 `SecureCore` enforces a strict **API / Internal / Factory** segregation across all modules:
-* **`api/`**: Public interfaces (`PassphraseManager`, `SecurePreferences`, `SecureFileStorage`, `BiometricAuthManager`, `IntegrityManager`, `TamperProtectionManager`) and strongly-typed models (`BiometricResult`, `BiometricStatus`, `IntegrityReport`, `ThreatType`, `AppSignatureStatus`). Consumers only interact with these contracts.
+* **`api/`**: Public interfaces (`PassphraseManager`, `SecurePreferences`, `SecureFileStorage`, `BiometricAuthManager`, `IntegrityManager`, `TamperProtectionManager`, `ScreenProtectionManager`) and strongly-typed models (`BiometricResult`, `BiometricStatus`, `IntegrityReport`, `ThreatType`, `AppSignatureStatus`). Consumers only interact with these contracts.
 * **`internal/`**: All implementations (`*Impl`, `RootDetector`, `EmulatorDetector`, `HookDetector`) are encapsulated using Kotlin's `internal` visibility modifier, protecting developers from breaking platform changes and isolating third-party/OS dependencies.
-* **`SecureCore` (Factory)**: Single unified facade providing factory initializers (`createPassphraseManager()`, `createSecurePreferences()`, `createBiometricAuthManager()`, `createIntegrityManager()`, `createTamperProtectionManager()`, etc.) and hardware integrity helpers.
+* **`SecureCore` (Factory)**: Single unified facade providing factory initializers (`createPassphraseManager()`, `createSecurePreferences()`, `createBiometricAuthManager()`, `createIntegrityManager()`, `createTamperProtectionManager()`, `createScreenProtectionManager()`, etc.) and hardware integrity helpers.
 
 ### Features
 - **Hardware-Backed Master Key**: Integrates transparently with the Android Keystore (TEE / StrongBox) using `AES-256 GCM`.
@@ -38,13 +38,17 @@
   - **Signature Hash Verification**: Runtime SHA-256 fingerprint validation of the active X.509 certificate to prevent repackaging, tampering, and malicious resigning.
   - **Installer Source Verification**: Inspects installation origin (e.g. Google Play Store vs untrusted sideloading).
   - **Consolidated Diagnostic Status**: Combines certificate fingerprint and installer trust through `AppSignatureStatus` (`isGenuine`).
+- **Screen & Window Privacy (`api/ScreenProtectionManager`)**:
+  - **Screenshot & Recording Blocking**: Dynamic application of `WindowManager.LayoutParams.FLAG_SECURE` preventing capture through user shortcuts, untrusted capture services, and screen recorders.
+  - **Recents / App Switcher Obscuration**: Automatic window preview blanking in the Android multitask switcher to protect sensitive views.
+  - **Jetpack Compose Lifecycle Integration (`SecureScreenEffect`)**: Automatic declarative enablement while composable screens or modal dialogs remain in composition, reverting to previous states on disposal.
 - **Biometric Authentication (`api/BiometricAuthManager`)**:
     - Unified hardware readiness and enrollment verification via `canAuthenticate()`.
     - Biometric dialog orchestration with optional device credential fallback (PIN, pattern, password).
     - Cryptographic-bound authentication (`authenticateWithCrypto()`) backed by `BiometricPrompt.CryptoObject` and the Android Keystore.
     - Exhaustive sealed result models (`BiometricResult.Success`, `BiometricResult.Error`, `BiometricResult.Failed`).
 - **Hardware Attestation**: StrongBox Keymaster detection on compatible hardware (Android 9.0+ / API 28+).
--**Resilient Error Handling**: Uses Kotlin's `Result<T>` pattern across all operations to prevent uncaught cryptographic crashes.
+- **Resilient Error Handling**: Uses Kotlin's `Result<T>` pattern across all operations to prevent uncaught cryptographic crashes.
 
 
 ### Installation
@@ -226,6 +230,26 @@ if (!status.isGenuine) {
   println("Installer source: ${status.installerPackageName ?: "Sideloaded"}")
 }
 ```
+#### 8. Screen & Window Protection (`FLAG_SECURE`)
+```kotlin
+import com.github.jragcer.securitycore.SecureCore
+import com.github.jragcer.securitycore.api.screen.SecureScreenEffect
+
+// Imperative Activity-level control
+val screenManager = SecureCore.createScreenProtectionManager()
+screenManager.enableProtection(activity)
+val isSecured = screenManager.isProtectionActive(activity)
+screenManager.disableProtection(activity)
+
+// Declarative Compose integration
+@Composable
+fun SensitivePaymentScreen() {
+    // Automatically applies FLAG_SECURE while in composition, restores on disposal
+    SecureScreenEffect(enabled = true)
+
+    // Protected UI content
+}
+```
 
 ### Testing
 Run unit tests and instrumented tests via Gradle:
@@ -240,14 +264,15 @@ Run unit tests and instrumented tests via Gradle:
 
 ### Architecture & Security Overview
 
-| Component              | Underlying Technology                                                   | Cryptographic Scheme                                |
-|:-----------------------|:------------------------------------------------------------------------|:----------------------------------------------------|
-| **Passphrase Engine**  | `EncryptedFile` + Android Keystore                                      | `AES-256 GCM HKDF 4KB`                              |
-| **Preference Engine**  | `EncryptedSharedPreferences`                                            | Keys: `AES-256 SIV`<br>Values: `AES-256 GCM`        |
-| **File Engine**        | `EncryptedFile` + IO Streams                                            | `AES-256 GCM HKDF 4KB`                              |
-| **Biometric Engine**   | AndroidX `BiometricPrompt`                                              | Hardware-backed Biometric / CryptoObject            |
-| **Integrity Engine**   | Multi-heuristic detection ( `su`,`/proc/self/maps`,`Build properties` ) | Runtime Anti-Tamper & Environment Analysis          |
-| **ITamper Protection** | `SigningInfosu`/`PackageManager` + `MessageDigest` )                    | SHA-256 Certificate Fingerprinting & Origin Check   |
+| Component             | Underlying Technology                                                   | Cryptographic Scheme                              |
+|:----------------------|:------------------------------------------------------------------------|:--------------------------------------------------|
+| **Passphrase Engine** | `EncryptedFile` + Android Keystore                                      | `AES-256 GCM HKDF 4KB`                            |
+| **Preference Engine** | `EncryptedSharedPreferences`                                            | Keys: `AES-256 SIV`<br>Values: `AES-256 GCM`      |
+| **File Engine**       | `EncryptedFile` + IO Streams                                            | `AES-256 GCM HKDF 4KB`                            |
+| **Biometric Engine**  | AndroidX `BiometricPrompt`                                              | Hardware-backed Biometric / CryptoObject          |
+| **Integrity Engine**  | Multi-heuristic detection ( `su`,`/proc/self/maps`,`Build properties` ) | Runtime Anti-Tamper & Environment Analysis        |
+| **Tamper Protection** | `SigningInfosu`/`PackageManager` + `MessageDigest` )                    | SHA-256 Certificate Fingerprinting & Origin Check |
+| **Screen Protection** | `WindowManager.LayoutParams.FLAG_SECURE`                                | OS Window Privacy Buffer Masking                  |
 
 ### License
 Distributed under the MIT License. See `LICENSE` for more information.
@@ -257,16 +282,16 @@ Distributed under the MIT License. See `LICENSE` for more information.
 <a name="español"></a>
 ## Español
 
-`SecureCore` es un SDK de seguridad para Android de nivel empresarial diseñado para simplificar tareas de criptografía, persistencia segura, autenticación biométrica, evaluación de integridad en tiempo de ejecución, protección contra modificaciones del APK y validación de hardware con el mínimo código boilerplate.
+`SecureCore` es un SDK de seguridad para Android de nivel empresarial diseñado para simplificar tareas de criptografía, persistencia segura, autenticación biométrica, evaluación de integridad en tiempo de ejecución, protección contra modificaciones del APK, privacidad de pantalla y validación de hardware con el mínimo código boilerplate.
 
-> **Versión actual:** `1.3.0` (Consulta [CHANGELOG.md](CHANGELOG.md) para ver los detalles de la versión)
+> **Versión actual:** `1.4.0` (Consulta [CHANGELOG.md](CHANGELOG.md) para ver los detalles de la versión)
 
 ### Arquitectura
 
 `SecureCore` aplica una estricta segregación bajo el patrón **API / Internal / Factory** en todos sus módulos:
-- **`api/`**: Interfaces públicas (`PassphraseManager`, `SecurePreferences`, `SecureFileStorage`, `BiometricAuthManager`, `IntegrityManager`, `TamperProtectionManager`) y modelos fuertemente tipados (`BiometricResult`, `BiometricStatus`, `IntegrityReport`, `ThreatType`, `AppSignatureStatus`). Los consumidores únicamente interactúan con estos contratos.
+- **`api/`**: Interfaces públicas (`PassphraseManager`, `SecurePreferences`, `SecureFileStorage`, `BiometricAuthManager`, `IntegrityManager`, `TamperProtectionManager`) y modelos fuertemente tipados (`BiometricResult`, `BiometricStatus`, `IntegrityReport`, `ThreatType`, `AppSignatureStatus`, `ScreenProtectionManager`). Los consumidores únicamente interactúan con estos contratos.
 - **`internal/`**: Todas las implementaciones (`*Impl`, `RootDetector`, `EmulatorDetector`, `HookDetector`) quedan encapsuladas mediante el modificador de visibilidad `internal` de Kotlin, protegiendo a los desarrolladores de cambios de plataforma que rompan compatibilidad y aislando las dependencias del sistema operativo y de terceros.
-- **`SecureCore` (Factoría)**: Fachada única y unificada que provee métodos factoría de inicialización (`createPassphraseManager()`, `createSecurePreferences()`, `createBiometricAuthManager()`, `createIntegrityManager()`, `createTamperProtectionManager()`, etc.) y herramientas de validación de integridad del hardware.
+- **`SecureCore` (Factoría)**: Fachada única y unificada que provee métodos factoría de inicialización (`createPassphraseManager()`, `createSecurePreferences()`, `createBiometricAuthManager()`, `createIntegrityManager()`, `createTamperProtectionManager()`, `createScreenProtectionManager()`, etc.) y herramientas de validación de integridad del hardware.
 
 ### Características
 - **Clave maestra respaldada por hardware**: Integración transparente con Android Keystore (TEE / StrongBox) mediante `AES-256 GCM`.
@@ -282,6 +307,10 @@ Distributed under the MIT License. See `LICENSE` for more information.
   - **Validación de Firma en Runtime**: Cotejo del hash SHA-256 del certificado X.509 activo contra firmas esperadas para neutralizar APKs recompilados o refirmados.
   - **Verificación del Instalado**: Comprobación del origen de instalación (Google Play Store frente a orígenes desconocidos / sideloading).
   - **Diagnóstico Consolidado**: Estado unificado mediante `AppSignatureStatus` y propiedad calculada `isGenuine`.
+- **Protección de Pantalla y Ventana (`api/ScreenProtectionManager`)**:
+  - **Bloqueo de Capturas y Grabaciones**: Aplicación dinámica de `WindowManager.LayoutParams.FLAG_SECURE` para impedir capturas de pantalla, grabaciones de vídeo y visualización remota no autorizada.
+  - **Ocultación en Multitarea / Recientes**: Oculta la vista previa de la app en el selector de aplicaciones recientes del sistema Android.
+  - **Integración con Jetpack Compose (`SecureScreenEffect`)**: Efecto de ciclo de vida declarativo (`DisposableEffect`) que protege automáticamente composables o diálogos mientras permanezcan en composición y restaura el estado al desmontarse.
 - **Autenticación Biométrica (`api/BiometricAuthManager`)**:
     - Comprobación de disponibilidad de hardware y credenciales registradas mediante `canAuthenticate()`.
     - Despliegue de prompts biométricos nativos con soporte para credenciales del dispositivo (PIN, patrón, contraseña).
@@ -467,6 +496,27 @@ if (!status.isGenuine) {
 }
 ```
 
+#### 8. Protección de Pantalla y Ventana (`FLAG_SECURE`)
+```kotlin
+import com.github.jragcer.securitycore.SecureCore
+import com.github.jragcer.securitycore.api.screen.SecureScreenEffect
+
+// Control imperativo por Activity
+val screenManager = SecureCore.createScreenProtectionManager()
+screenManager.enableProtection(activity)
+val isSecured = screenManager.isProtectionActive(activity)
+screenManager.disableProtection(activity)
+
+// Integración declarativa en Jetpack Compose
+@Composable
+fun SensitivePaymentScreen() {
+    // Activa FLAG_SECURE automáticamente mientras el composable esté visible
+    SecureScreenEffect(enabled = true)
+
+    // Contenido protegido
+}
+```
+
 ### Pruebas (Testing)
 Ejecuta la suite de pruebas unitarias o instrumentadas:
 
@@ -488,6 +538,7 @@ Ejecuta la suite de pruebas unitarias o instrumentadas:
 | **Motor biométrico**      | AndroidX `BiometricPrompt`                                                    | Biometría respaldada por hardware / CryptoObject               |
 | **Motor de integridad**   | Detección heurística múltiple ( `su`, `/proc/self/maps`, `propiedades Build`) | Análisis de entorno y mitigación de manipulación (Anti-Tamper) |
 | **Protección Tamper**     | `SigningInfo`/`PackageManager` + `MessageDigest`)                             | Huella SHA-256 de Certificados e Inspección de Origen          |
+| **Protección de Pantalla**| `WindowManager.LayoutParams.FLAG_SECURE`                                      | Enmascaramiento de Buffer de Ventana a nivel SO                |
 
 ### Licencia
 Distribuido bajo la licencia MIT. Consulta el archivo `LICENSE` para obtener más información.
