@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-10-23
+
+### Added
+- **Screen & Window Privacy Protection Module (`api/screen`)**:
+  - `ScreenProtectionManager`: Public contract interface providing runtime control over window security policies to prevent unauthorized screen captures, screen recording, and content exposure in the Android App Switcher (Recents screen).
+  - `ScreenProtectionManagerImpl`: Encapsulated implementation dynamically applying and clearing `WindowManager.LayoutParams.FLAG_SECURE` on target `Activity` windows.
+  - `SecureScreenEffect`: Lifecycle-aware Jetpack Compose composable helper (`DisposableEffect`) that automatically enforces screen protection while a composable or dialog is active, seamlessly restoring previous window states on disposal via optional state callbacks.
+  - Unified facade initialization via `SecureCore.createScreenProtectionManager()`.
+- **UI Components & Demo**:
+  - Added `SensitiveDataModal` demonstrating automated Compose-level screen protection and state restoration.
+  - UI integration inside `SecurityDemoScreen`.
+- **Testing & Tooling**:
+  - JVM unit test coverage (`ScreenProtectionManagerUnitTest`) verifying `FLAG_SECURE` flag operations with Mockito.
+  - Instrumented test suite (`ScreenProtectionInstrumentedTest`) validating window security flags and Compose rule lifecycle across runtime Android devices.
+  - Added test manifest configuration in `src/debug/AndroidManifest.xml` with `androidx.compose.ui:ui-test-manifest` integration.
+
+---
+
 ## [1.3.0] - 2026-10-23
 
 ### Added

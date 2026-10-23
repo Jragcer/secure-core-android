@@ -7,19 +7,20 @@ coreKtx = "1.19.1"
 fragmentKtx = "1.9.1"
 gson = "2.14.0"
 junit = "4.13.2"
-junitVersion = "1.3.0"
-espressoCore = "3.7.0"
+junitVersion = "1.1.5"
+espressoCore = "3.5.0"
 appcompat = "1.8.0"
 kotlinxCoroutinesTest = "1.10.2"
 material = "1.14.0"
 robolectric = "4.17"
-securitycore = "1.3.0"
+securitycore = "1.4.0"
 runtime = "1.12.1"
 kotlin = "2.0.21"
 material3 = "1.4.0"
 coreKtxVersion = "1.7.0"
 mockito = "5.12.0"
 mockitoKotlin = "5.4.0"
+uiTestJunit4 = "1.12.1"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -49,6 +50,8 @@ material3 = { group = "androidx.compose.material3", name = "material3", version.
 core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "coreKtxVersion" }
 mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
 mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version.ref = "mockitoKotlin" }
+androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "uiTestJunit4" }
+ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

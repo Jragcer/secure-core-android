@@ -1,6 +1,7 @@
 package com.github.jragcer.securitysdkdemo
 
 import android.os.Bundle
+import android.util.Base64
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,8 @@ import androidx.fragment.app.FragmentActivity
 import com.github.jragcer.securitycore.SecureCore
 import com.github.jragcer.securitycore.api.biometric.BiometricResult
 import com.github.jragcer.securitycore.api.biometric.BiometricStatus
+import com.github.jragcer.securitysdkdemo.components.ExpandableSectionCard
+import com.github.jragcer.securitysdkdemo.components.SensitiveDataModal
 import kotlinx.coroutines.launch
 
 class MainActivity: FragmentActivity() {
@@ -65,6 +68,12 @@ class MainActivity: FragmentActivity() {
         val secureFileStorage = remember { SecureCore.createSecureFileStorage(context) }
         val integrityManager = remember { SecureCore.createIntegrityManager(context) }
         val tamperProtectionManager = remember { SecureCore.createTamperProtectionManager(context) }
+        val screenProtectionManager = remember { SecureCore.createScreenProtectionManager() }
+
+        var isScreenProtected by remember {
+            mutableStateOf(screenProtectionManager.isProtectionActive(activity))
+        }
+        var showSensitiveDialog by remember { mutableStateOf(false) }
 
         LaunchedEffect(Unit) {
             if (SecureCore.isStrongBoxSupported(applicationContext)) {
@@ -100,6 +109,57 @@ class MainActivity: FragmentActivity() {
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // ==========================================
+            ExpandableSectionCard(
+                title = "Screen & Window Protection (FLAG_SECURE)",
+                initiallyExpanded = false
+            ) {
+                Text(
+                    text = "Current Status: ${if (isScreenProtected) "PROTECTED (FLAG_SECURE active)" else "UNPROTECTED"}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isScreenProtected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                )
+
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val newState = screenProtectionManager.toggleProtection(activity)
+                        isScreenProtected = newState
+                        statusText = if (newState) {
+                            "Screen Protection: ENABLED\n" +
+                                    " • Screenshots blocked\n" +
+                                    " • Video recordings blocked\n" +
+                                    " • Obscured in App Switcher (Recents)"
+                        } else {
+                            "Screen Protection: DISABLED\n" +
+                                    " • Window flags cleared (Normal mode)"
+                        }
+                    }
+                ) {
+                    Text(if (isScreenProtected) "Disable Screen Protection" else "Enable Screen Protection")
+                }
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val active = screenProtectionManager.isProtectionActive(activity)
+                        isScreenProtected = active
+                        statusText = "Screen Protection Check:\n" +
+                                " • FLAG_SECURE Present: $active\n" +
+                                " • Window: ${activity.window}"
+                    }
+                ) {
+                    Text("Verify Window Security Flags")
+                }
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { showSensitiveDialog = true }
+                ) {
+                    Text("Open Screen with SecureScreenEffect")
+                }
+            }
 
             // ==========================================
             ExpandableSectionCard(
@@ -245,7 +305,7 @@ class MainActivity: FragmentActivity() {
                                 val hexKey = bytes.joinToString(separator = "") { byte ->
                                     "%02x".format(byte)
                                 }
-                                val base64Key = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                                val base64Key = Base64.encodeToString(bytes, Base64.NO_WRAP)
                                 statusText = "Passphrase loaded (${bytes.size} bytes):"
                                 statusText += "\nHex->$hexKey"
                                 statusText += "\nBase64->$base64Key"
@@ -261,7 +321,10 @@ class MainActivity: FragmentActivity() {
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
-                        securePreferences?.putString("session_token", "encrypted_jwt_token_sample_12345")
+                        securePreferences?.putString(
+                            "session_token",
+                            "encrypted_jwt_token_sample_12345"
+                        )
                         val retrieved = securePreferences?.getString("session_token")
                         statusText = "SecurePreferences: stored & decrypted -> '$retrieved'"
                     }
@@ -290,6 +353,20 @@ class MainActivity: FragmentActivity() {
                     Text("Test SecureFileStorage")
                 }
             }
+        }
+
+        if (showSensitiveDialog) {
+            SensitiveDataModal(
+                onDismiss = {
+                    showSensitiveDialog = false
+                    // Actualizamos el estado visual para comprobar que se restauró
+                    isScreenProtected = screenProtectionManager.isProtectionActive(activity)
+                    statusText = "Left sensitive screen: Protection auto-restored."
+                },
+                onProtectionChanged = { active ->
+                    isScreenProtected = active
+                }
+            )
         }
     }
 

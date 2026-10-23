@@ -1,4 +1,4 @@
-package com.github.jragcer.securitysdkdemo
+package com.github.jragcer.securitysdkdemo.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
