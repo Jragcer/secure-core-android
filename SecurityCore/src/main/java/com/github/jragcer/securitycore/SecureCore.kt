@@ -8,11 +8,13 @@ import com.github.jragcer.securitycore.api.integrity.IntegrityManager
 import com.github.jragcer.securitycore.api.storage.PassphraseManager
 import com.github.jragcer.securitycore.api.storage.SecureFileStorage
 import com.github.jragcer.securitycore.api.storage.SecurePreferences
+import com.github.jragcer.securitycore.api.tamper.TamperProtectionManager
 import com.github.jragcer.securitycore.internal.biometric.BiometricAuthManagerImpl
 import com.github.jragcer.securitycore.internal.integrity.IntegrityManagerImpl
 import com.github.jragcer.securitycore.internal.storage.PassphraseManagerImpl
 import com.github.jragcer.securitycore.internal.storage.SecureFileStorageImpl
 import com.github.jragcer.securitycore.internal.storage.SecurePreferencesImpl
+import com.github.jragcer.securitycore.internal.tamper.TamperProtectionManagerImpl
 
 /**
  * Entry point providing library metadata and runtime information.
@@ -83,5 +85,16 @@ object SecureCore {
      */
     fun createIntegrityManager(context: Context): IntegrityManager {
         return IntegrityManagerImpl(context.applicationContext)
+    }
+
+    /**
+     * Creates an instance of [TamperProtectionManager] to detect APK modifications,
+     * repackaging, unauthorized signing certificates, and untrusted installation sources.
+     *
+     * @param context The application or activity context.
+     * @return Configured [TamperProtectionManager] instance.
+     */
+    fun createTamperProtectionManager(context: Context): TamperProtectionManager {
+        return TamperProtectionManagerImpl(context.applicationContext)
     }
 }

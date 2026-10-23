@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-10-23
+
+### Added
+- **APK Tamper & Signature Protection Module (`api/tamper`)**:
+  - `TamperProtectionManager`: Public interface for runtime signature hash validation and installer source auditing.
+  - `TamperProtectionManagerImpl`: Robust implementation resolving X.509 certificates across Android P+ (`SigningInfo`) and legacy releases (`GET_SIGNATURES`), computing normalized SHA-256 fingerprints.
+  - Installer verification supporting Android 11+ (`getInstallSourceInfo`) and legacy package managers to distinguish official stores (Google Play) from unauthorized sideloading.
+  - `AppSignatureStatus`: Consolidated diagnostic model reporting signature matches, installer trust, active hash, and overall genuine status (`isGenuine`).
+  - Factory entrypoint in `SecureCore.createTamperProtectionManager(context)`.
+  - Comprehensive unit and instrumented test suites.
+- **UI & Presentation**:
+  - `ExpandableSectionCard`: Modular collapsible container with animated expand/collapse states for SDK feature blocks.
+  - Interactive signature validation and certificate hash inspection controls in `SecurityDemoScreen`.
+  
+---
+
 ## [1.2.0] - 2026-10-22
 
 ### Added

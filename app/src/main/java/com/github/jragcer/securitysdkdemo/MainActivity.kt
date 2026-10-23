@@ -38,8 +38,6 @@ import com.github.jragcer.securitycore.api.biometric.BiometricStatus
 import kotlinx.coroutines.launch
 
 class MainActivity: FragmentActivity() {
-    val tag = "SecureCoreDemo"
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -53,7 +51,6 @@ class MainActivity: FragmentActivity() {
                 }
             }
         }
-
     }
 
     @Composable
@@ -67,6 +64,7 @@ class MainActivity: FragmentActivity() {
         val securePreferences = remember { SecureCore.createSecurePreferences(context).getOrNull() }
         val secureFileStorage = remember { SecureCore.createSecureFileStorage(context) }
         val integrityManager = remember { SecureCore.createIntegrityManager(context) }
+        val tamperProtectionManager = remember { SecureCore.createTamperProtectionManager(context) }
 
         LaunchedEffect(Unit) {
             if (SecureCore.isStrongBoxSupported(applicationContext)) {
@@ -103,147 +101,194 @@ class MainActivity: FragmentActivity() {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "Device & Runtime Integrity",
-                style = MaterialTheme.typography.titleMedium
-            )
+            // ==========================================
+            ExpandableSectionCard(
+                title = "APK Tamper & Signature Protection",
+                initiallyExpanded = false
+            ) {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val currentHash = tamperProtectionManager.getAppSignatureHash()
+                        val status = tamperProtectionManager.getSignatureStatus(
+                            expectedHash = currentHash
+                        )
 
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    val report = integrityManager.getIntegrityReport()
-                    val summary = buildString {
-                        appendLine("Integrity Status: ${if (report.isSecure) "SECURE" else "THREATS DETECTED"}")
-                        if (report.detectedThreats.isNotEmpty()) {
-                            appendLine("Threats: ${report.detectedThreats.joinToString(", ")}")
+                        val summary = buildString {
+                            appendLine("Tamper Status:")
+                            appendLine(" • Genuine State: ${if (status.isGenuine) "GENUINE" else "UNTRUSTED / SIDELOADED"}")
+                            appendLine(" • Signature Valid: ${status.isSignatureValid}")
+                            appendLine(" • Installer Trusted: ${status.isInstallerTrusted}")
+                            appendLine(" • Installer Source: ${status.installerPackageName ?: "Sideloaded / Unknown (Debug)"}")
+                            appendLine(" • Active Hash: ${status.currentSignatureHash.ifEmpty { "Unavailable" }}")
                         }
-                        appendLine("Details:")
-                        report.details.forEach { (check, detected) ->
-                            appendLine(" - $check: $detected")
+                        statusText = summary.trimEnd()
+                    }
+                ) {
+                    Text("Verify APK Signature & Origin")
+                }
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val currentHash = tamperProtectionManager.getAppSignatureHash()
+                        statusText = if (currentHash.isNotEmpty()) {
+                            "Current Signing SHA-256:\n$currentHash"
+                        } else {
+                            "Unable to read package signing certificates."
                         }
                     }
-                    statusText = summary.trimEnd()
+                ) {
+                    Text("Read Signing Certificate Hash")
                 }
-            ) {
-                Text("Run Integrity Assessment")
             }
 
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    val isRooted = integrityManager.isRooted()
-                    val isEmulator = integrityManager.isEmulator()
-                    val isHooked = integrityManager.isDebuggerOrHookingActive()
-                    val compromised = integrityManager.isDeviceCompromised()
-
-                    statusText = "Fast Heuristics:\n" +
-                            " • Device Compromised: $compromised\n" +
-                            " • Root Detected: $isRooted\n" +
-                            " • Emulator Detected: $isEmulator\n" +
-                            " • Debugger/Hook Active: $isHooked"
-                }
+            // ==========================================
+            ExpandableSectionCard(
+                title = "Device & Runtime Integrity",
+                initiallyExpanded = false
             ) {
-                Text("Quick Heuristic Checks")
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Biometric Authentication",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    val status = biometricManager.canAuthenticate(allowDeviceCredential = true)
-                    if (status is BiometricStatus.Ready) {
-                        biometricManager.authenticate(
-                            activity = activity,
-                            title = "Biometric Verification",
-                            subtitle = "Authenticate to unlock secure operations",
-                            allowDeviceCredential = true
-                        ) { result ->
-                            statusText = when (result) {
-                                is BiometricResult.Success -> {
-                                    Toast.makeText(activity, "Authentication successful!", Toast.LENGTH_SHORT).show()
-                                    "Biometric Status: SUCCESS"
-                                }
-                                is BiometricResult.Error -> {
-                                    "Biometric Error [${result.errorCode}]: ${result.errorMessage}"
-                                }
-                                is BiometricResult.Failed -> {
-                                    "Biometric Status: FAILED (Unrecognized biometric)"
-                                }
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val report = integrityManager.getIntegrityReport()
+                        val summary = buildString {
+                            appendLine("Integrity Status: ${if (report.isSecure) "SECURE" else "THREATS DETECTED"}")
+                            if (report.detectedThreats.isNotEmpty()) {
+                                appendLine("Threats: ${report.detectedThreats.joinToString(", ")}")
+                            }
+                            appendLine("Details:")
+                            report.details.forEach { (check, detected) ->
+                                appendLine(" - $check: $detected")
                             }
                         }
-                    } else {
-                        statusText = "Biometric unavailable: $status"
-                        Toast.makeText(activity, "Status: $status", Toast.LENGTH_LONG).show()
+                        statusText = summary.trimEnd()
                     }
+                ) {
+                    Text("Run Integrity Assessment")
                 }
-            ) {
-                Text("Launch Biometric Prompt")
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val isRooted = integrityManager.isRooted()
+                        val isEmulator = integrityManager.isEmulator()
+                        val isHooked = integrityManager.isDebuggerOrHookingActive()
+                        val compromised = integrityManager.isDeviceCompromised()
+
+                        statusText = "Fast Heuristics:\n" +
+                                " • Device Compromised: $compromised\n" +
+                                " • Root Detected: $isRooted\n" +
+                                " • Emulator Detected: $isEmulator\n" +
+                                " • Debugger/Hook Active: $isHooked"
+                    }
+                ) {
+                    Text("Quick Heuristic Checks")
+                }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // ==========================================
+            ExpandableSectionCard(
+                title = "Biometric Authentication",
+                initiallyExpanded = false
+            ) {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val status = biometricManager.canAuthenticate(allowDeviceCredential = true)
+                        if (status is BiometricStatus.Ready) {
+                            biometricManager.authenticate(
+                                activity = activity,
+                                title = "Biometric Verification",
+                                subtitle = "Authenticate to unlock secure operations",
+                                allowDeviceCredential = true
+                            ) { result ->
+                                statusText = when (result) {
+                                    is BiometricResult.Success -> {
+                                        Toast.makeText(
+                                            activity,
+                                            "Authentication successful!",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        "Biometric Status: SUCCESS"
+                                    }
 
-            Text(
-                text = "Secure Storage Primitives",
-                style = MaterialTheme.typography.titleMedium
-            )
+                                    is BiometricResult.Error -> {
+                                        "Biometric Error [${result.errorCode}]: ${result.errorMessage}"
+                                    }
 
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    passphraseManager.getOrCreatePassphrase("demo_passphrase_key")
-                        .onSuccess { bytes ->
-                            val hexKey = bytes.joinToString(separator = "") { byte ->
-                                "%02x".format(byte)
+                                    is BiometricResult.Failed -> {
+                                        "Biometric Status: FAILED (Unrecognized biometric)"
+                                    }
+                                }
                             }
-                            val base64Key = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                            statusText = "Passphrase loaded (${bytes.size} bytes):"
-                            statusText += "\nHex->$hexKey"
-                            statusText += "\nBase64->$base64Key"
+                        } else {
+                            statusText = "Biometric unavailable: $status"
+                            Toast.makeText(activity, "Status: $status", Toast.LENGTH_LONG).show()
                         }
-                        .onFailure { error ->
-                            statusText = "Passphrase error: ${error.message}"
-                        }
+                    }
+                ) {
+                    Text("Launch Biometric Prompt")
                 }
-            ) {
-                Text("Test PassphraseManager")
             }
 
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    securePreferences?.putString("session_token", "encrypted_jwt_token_sample_12345")
-                    val retrieved = securePreferences?.getString("session_token")
-                    statusText = "SecurePreferences: stored & decrypted -> '$retrieved'"
-                }
+            // ==========================================
+            ExpandableSectionCard(
+                title = "Secure Storage Primitives",
+                initiallyExpanded = false
             ) {
-                Text("Test SecurePreferences")
-            }
-
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    scope.launch {
-                        val fileName = "demo_secure_note.txt"
-                        val content = "Confidential payload secured with EncryptedFile."
-
-                        secureFileStorage.writeText(fileName, content)
-                            .onSuccess {
-                                val readBack = secureFileStorage.readText(fileName).getOrNull()
-                                statusText = "SecureFileStorage: '$readBack'"
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        passphraseManager.getOrCreatePassphrase("demo_passphrase_key")
+                            .onSuccess { bytes ->
+                                val hexKey = bytes.joinToString(separator = "") { byte ->
+                                    "%02x".format(byte)
+                                }
+                                val base64Key = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                                statusText = "Passphrase loaded (${bytes.size} bytes):"
+                                statusText += "\nHex->$hexKey"
+                                statusText += "\nBase64->$base64Key"
                             }
-                            .onFailure {
-                                statusText = "File write error: ${it.message}"
+                            .onFailure { error ->
+                                statusText = "Passphrase error: ${error.message}"
                             }
                     }
+                ) {
+                    Text("Test PassphraseManager")
                 }
-            ) {
-                Text("Test SecureFileStorage")
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        securePreferences?.putString("session_token", "encrypted_jwt_token_sample_12345")
+                        val retrieved = securePreferences?.getString("session_token")
+                        statusText = "SecurePreferences: stored & decrypted -> '$retrieved'"
+                    }
+                ) {
+                    Text("Test SecurePreferences")
+                }
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        scope.launch {
+                            val fileName = "demo_secure_note.txt"
+                            val content = "Confidential payload secured with EncryptedFile."
+
+                            secureFileStorage.writeText(fileName, content)
+                                .onSuccess {
+                                    val readBack = secureFileStorage.readText(fileName).getOrNull()
+                                    statusText = "SecureFileStorage: '$readBack'"
+                                }
+                                .onFailure {
+                                    statusText = "File write error: ${it.message}"
+                                }
+                        }
+                    }
+                ) {
+                    Text("Test SecureFileStorage")
+                }
             }
         }
     }
@@ -260,5 +305,4 @@ class MainActivity: FragmentActivity() {
             }
         }
     }
-
 }
