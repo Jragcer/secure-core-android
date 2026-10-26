@@ -147,7 +147,7 @@ class MainActivity: FragmentActivity() {
 
                             statusText = withContext(Dispatchers.IO) {
                                 try {
-                                    val client = networkSecurityManager.applyPingit statusning(clientBuilder, pins).build()
+                                    val client = networkSecurityManager.applyPinning(clientBuilder, pins).build()
                                     val request = Request.Builder().url("https://$host").build()
                                     client.newCall(request).execute().use { response ->
                                         "Unexpected: Connection succeeded with HTTP ${response.code}"
