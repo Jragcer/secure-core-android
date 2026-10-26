@@ -71,25 +71,37 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        force("androidx.test.espresso:espresso-core:3.6.1")
+        force("androidx.test.espresso:espresso-idling-resource:3.6.1")
+        force("androidx.test.ext:junit:1.2.1")
+        force("androidx.test:runner:1.6.2")
+        force("androidx.test:core:1.6.1")
+    }
+}
+
 dependencies {
     debugImplementation(libs.ui.test.manifest)
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.ui.test.junit4)
     implementation(libs.core.ktx)
     implementation(libs.material)
     implementation(libs.androidx.security.crypto)
     implementation(libs.gson)
     implementation(libs.material3)
-    val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
+    val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
-    androidTestImplementation(composeBom)
+    implementation(libs.okhttp)
+
+    // Tests unitarios JVM
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)
-    androidTestImplementation(libs.androidx.espresso.core)
+
+    // Tests instrumentados Android
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.runner)
     androidTestImplementation(libs.androidx.core)

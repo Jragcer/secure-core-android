@@ -38,7 +38,12 @@ import com.github.jragcer.securitycore.api.biometric.BiometricResult
 import com.github.jragcer.securitycore.api.biometric.BiometricStatus
 import com.github.jragcer.securitysdkdemo.components.ExpandableSectionCard
 import com.github.jragcer.securitysdkdemo.components.SensitiveDataModal
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import javax.net.ssl.SSLPeerUnverifiedException
 
 class MainActivity: FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,6 +74,7 @@ class MainActivity: FragmentActivity() {
         val integrityManager = remember { SecureCore.createIntegrityManager(context) }
         val tamperProtectionManager = remember { SecureCore.createTamperProtectionManager(context) }
         val screenProtectionManager = remember { SecureCore.createScreenProtectionManager() }
+        val networkSecurityManager = remember { SecureCore.createNetworkSecurityManager(context) }
 
         var isScreenProtected by remember {
             mutableStateOf(screenProtectionManager.isProtectionActive(activity))
@@ -109,6 +115,96 @@ class MainActivity: FragmentActivity() {
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // ==========================================
+            ExpandableSectionCard(
+                title = "Network Security & SSL Pinning",
+                initiallyExpanded = false
+            ) {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val hasUserCAs = networkSecurityManager.hasUserInstalledCertificates()
+                        val summary = buildString {
+                            appendLine("TrustStore Inspection:")
+                            appendLine(" • User CAs Detected: ${if (hasUserCAs) "YES (Risk: MitM / Proxy active)" else "NO (Clean system store)"}")
+                            appendLine(" • Potential Proxy/Packet Capture Tool Active: $hasUserCAs")
+                        }
+                        statusText = summary.trimEnd()
+                    }
+                ) {
+                    Text("Check User-Installed CAs (Proxy Check)")
+                }
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        scope.launch {
+                            val host = "api.github.com"
+                            val wrongPin = "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                            val clientBuilder = OkHttpClient.Builder()
+                            val pins = mapOf(host to listOf(wrongPin))
+
+                            statusText = withContext(Dispatchers.IO) {
+                                try {
+                                    val client = networkSecurityManager.applyPinning(clientBuilder, pins).build()
+                                    val request = Request.Builder().url("https://$host").build()
+                                    client.newCall(request).execute().use { response ->
+                                        "Unexpected: Connection succeeded with HTTP ${response.code}"
+                                    }
+                                } catch (e: SSLPeerUnverifiedException) {
+                                    buildString {
+                                        appendLine("Pinning Verification:")
+                                        appendLine(" • Connection Blocked: SUCCESS")
+                                        appendLine(" • Reason: SSLPeerUnverifiedException")
+                                        appendLine(" • MitM Attack Prevented: Host key rejected")
+                                    }.trimEnd()
+                                } catch (e: Exception) {
+                                    "Network Error: ${e.message}"
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text("Test Invalid Pin (Simulate MitM Block)")
+                }
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        scope.launch {
+                            val host = "api.github.com"
+                            val dummyPin = "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                            val clientBuilder = OkHttpClient.Builder()
+                            val pins = mapOf(host to listOf(dummyPin))
+
+                            statusText = withContext(Dispatchers.IO) {
+                                try {
+                                    val client = networkSecurityManager.applyPinning(clientBuilder, pins).build()
+                                    val request = Request.Builder().url("https://$host").build()
+                                    client.newCall(request).execute().use { }
+                                    "Connected without pinning error."
+                                } catch (e: SSLPeerUnverifiedException) {
+                                    val extractedPins = e.message
+                                        ?.lines()
+                                        ?.filter { it.contains("sha256/") }
+                                        ?.map { " • ${it.trim().removePrefix("Pin: ")}" }
+                                        ?.joinToString("\n") ?: "No pins discovered"
+
+                                    buildString {
+                                        appendLine("Host Public Key Pins ($host):")
+                                        appendLine(extractedPins)
+                                    }.trimEnd()
+                                } catch (e: Exception) {
+                                    "Error inspecting pins: ${e.message}"
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text("Inspect Host Public Key Pins")
+                }
+            }
 
             // ==========================================
             ExpandableSectionCard(

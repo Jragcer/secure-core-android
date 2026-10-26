@@ -37,6 +37,16 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        force("androidx.test.espresso:espresso-core:3.6.1")
+        force("androidx.test.espresso:espresso-idling-resource:3.6.1")
+        force("androidx.test.ext:junit:1.2.1")
+        force("androidx.test:runner:1.6.2")
+        force("androidx.test:core:1.6.1")
+    }
+}
+
 dependencies {
     implementation(project(":SecurityCore"))
     implementation(libs.androidx.appcompat)
@@ -45,9 +55,8 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.material3)
-    val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
+    val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
-    androidTestImplementation(composeBom)
     implementation(libs.androidx.material.icons.extended)
 
     implementation(libs.androidx.ui)
@@ -56,10 +65,14 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.activity.compose)
 
+    implementation(libs.okhttp)
+
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
+    // Tests unitarios JVM
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+
+    // Tests instrumentados Android
     androidTestImplementation(libs.androidx.junit)
 }

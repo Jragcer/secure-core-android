@@ -2,18 +2,20 @@
 activityCompose = "1.13.0"
 agp = "9.4.1"
 biometric = "1.2.0-alpha05"
-core = "1.7.0"
+core = "1.6.1"
+testRunner = "1.6.2"
 coreKtx = "1.19.1"
 fragmentKtx = "1.9.1"
 gson = "2.14.0"
 junit = "4.13.2"
-junitVersion = "1.1.5"
-espressoCore = "3.5.0"
+junitVersion = "1.2.1"
+espressoCore = "3.6.1"
 appcompat = "1.8.0"
 kotlinxCoroutinesTest = "1.10.2"
 material = "1.14.0"
+okhttp = "5.5.1"
 robolectric = "4.17"
-securitycore = "1.4.0"
+securitycore = "1.5.0"
 runtime = "1.12.1"
 kotlin = "2.0.21"
 material3 = "1.4.0"
@@ -30,7 +32,7 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragmentKtx" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-material3 = { module = "androidx.compose.material3:material3" }
-androidx-runner = { module = "androidx.test:runner", version.ref = "core" }
+androidx-runner = { module = "androidx.test:runner", version.ref = "testRunner" }
 androidx-ui = { module = "androidx.compose.ui:ui" }
 androidx-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
@@ -44,6 +46,7 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesTest" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version = "1.1.0-alpha06" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 androidx-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
