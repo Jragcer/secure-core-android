@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import com.github.jragcer.securitycore.api.biometric.BiometricAuthManager
 import com.github.jragcer.securitycore.api.integrity.IntegrityManager
+import com.github.jragcer.securitycore.api.network.NetworkSecurityManager
 import com.github.jragcer.securitycore.api.screen.ScreenProtectionManager
 import com.github.jragcer.securitycore.api.storage.PassphraseManager
 import com.github.jragcer.securitycore.api.storage.SecureFileStorage
@@ -12,6 +13,7 @@ import com.github.jragcer.securitycore.api.storage.SecurePreferences
 import com.github.jragcer.securitycore.api.tamper.TamperProtectionManager
 import com.github.jragcer.securitycore.internal.biometric.BiometricAuthManagerImpl
 import com.github.jragcer.securitycore.internal.integrity.IntegrityManagerImpl
+import com.github.jragcer.securitycore.internal.network.NetworkSecurityManagerImpl
 import com.github.jragcer.securitycore.internal.screen.ScreenProtectionManagerImpl
 import com.github.jragcer.securitycore.internal.storage.PassphraseManagerImpl
 import com.github.jragcer.securitycore.internal.storage.SecureFileStorageImpl
@@ -108,5 +110,16 @@ object SecureCore {
      */
     fun createScreenProtectionManager(): ScreenProtectionManager {
         return ScreenProtectionManagerImpl()
+    }
+
+    /**
+     * Creates and initializes a [NetworkSecurityManager] to manage SSL/TLS Certificate Pinning
+     * and inspect the device trust store for user-installed CAs (MitM proxy detection).
+     *
+     * @param context Application context.
+     * @return Configured [NetworkSecurityManager] instance.
+     */
+    fun createNetworkSecurityManager(context: Context): NetworkSecurityManager {
+        return NetworkSecurityManagerImpl(context.applicationContext)
     }
 }

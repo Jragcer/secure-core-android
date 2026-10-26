@@ -1,7 +1,7 @@
 # SecureCore Android Library
 
 [![Android CI](https://github.com/Jragcer/secure-core-android/actions/workflows/build.yaml/badge.svg)](https://github.com/Jragcer/secure-core-android/actions/workflows/build.yaml)
-[![Latest Release](https://img.shields.io/badge/Release-1.4.0-blue.svg)](https://github.com/jragcer/SecuritySdkDemo/releases)
+[![Latest Release](https://img.shields.io/badge/Release-1.5.0-blue.svg)](https://github.com/jragcer/SecuritySdkDemo/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
 [![Kotlin Version](https://img.shields.io/badge/Kotlin-2.0.21-blue.svg)](https://kotlinlang.org)
@@ -14,21 +14,21 @@
 <a name="english"></a>
 ## English
 
-`SecureCore` is an enterprise-grade Android security SDK engineered to simplify cryptography, secure local storage, biometric authentication, runtime integrity assessment, APK tamper protection, screen privacy enforcement, and hardware validations with minimal boilerplate.
-> **Current Version:** `1.4.0` (See [CHANGELOG.md](CHANGELOG.md) for full release details)
+`SecureCore` is an enterprise-grade Android security SDK engineered to simplify cryptography, secure local storage, biometric authentication, runtime integrity assessment, APK tamper protection, screen privacy enforcement, SSL/TLS certificate pinning, MitM detection, and hardware validations with minimal boilerplate.
+> **Current Version:** `1.5.0` (See [CHANGELOG.md](CHANGELOG.md) for full release details)
 
 ### Architecture
 
 `SecureCore` enforces a strict **API / Internal / Factory** segregation across all modules:
-* **`api/`**: Public interfaces (`PassphraseManager`, `SecurePreferences`, `SecureFileStorage`, `BiometricAuthManager`, `IntegrityManager`, `TamperProtectionManager`, `ScreenProtectionManager`) and strongly-typed models (`BiometricResult`, `BiometricStatus`, `IntegrityReport`, `ThreatType`, `AppSignatureStatus`). Consumers only interact with these contracts.
+* **`api/`**: Public interfaces (`PassphraseManager`, `SecurePreferences`, `SecureFileStorage`, `BiometricAuthManager`, `IntegrityManager`, `TamperProtectionManager`, `ScreenProtectionManager`, `NetworkSecurityManager`) and strongly-typed models (`BiometricResult`, `BiometricStatus`, `IntegrityReport`, `ThreatType`, `AppSignatureStatus`). Consumers only interact with these contracts.
 * **`internal/`**: All implementations (`*Impl`, `RootDetector`, `EmulatorDetector`, `HookDetector`) are encapsulated using Kotlin's `internal` visibility modifier, protecting developers from breaking platform changes and isolating third-party/OS dependencies.
-* **`SecureCore` (Factory)**: Single unified facade providing factory initializers (`createPassphraseManager()`, `createSecurePreferences()`, `createBiometricAuthManager()`, `createIntegrityManager()`, `createTamperProtectionManager()`, `createScreenProtectionManager()`, etc.) and hardware integrity helpers.
+* **`SecureCore` (Factory)**: Single unified facade providing factory initializers (`createPassphraseManager()`, `createSecurePreferences()`, `createBiometricAuthManager()`, `createIntegrityManager()`, `createTamperProtectionManager()`, `createScreenProtectionManager()`, `createNetworkSecurityManager()`, etc.) and hardware integrity helpers.
 
 ### Features
 - **Hardware-Backed Master Key**: Integrates transparently with the Android Keystore (TEE / StrongBox) using `AES-256 GCM`.
-- **`PassphraseManagerImpl`**: Generates and persists high-entropy passphrases encrypted on disk. It automatically discards `0x00` (null bytes), guaranteeing direct compatibility with native database engines like SQLCipher.
-- **`SecurePreferencesImpl`**: Type-safe encrypted key-value storage powered by `EncryptedSharedPreferences` (`AES-256 SIV` for keys and `AES-256 GCM` for values) with out-of-the-box JSON serialization for custom models via Gson.
-- **`SecureFileStorageImpl`**: High-performance encrypted file operations running off the main thread (`Dispatchers.IO`) through Kotlin Coroutines.
+- **`PassphraseManager`**: Generates and persists high-entropy passphrases encrypted on disk. It automatically discards `0x00` (null bytes), guaranteeing direct compatibility with native database engines like SQLCipher.
+- **`SecurePreferences`**: Type-safe encrypted key-value storage powered by `EncryptedSharedPreferences` (`AES-256 SIV` for keys and `AES-256 GCM` for values) with out-of-the-box JSON serialization for custom models via Gson.
+- **`SecureFileStorage`**: High-performance encrypted file operations running off the main thread (`Dispatchers.IO`) through Kotlin Coroutines.
 - **Device & Runtime Integrity (`api/IntegrityManager`)**:
   - **Root Detection**: Heuristic evaluation for root management apps, test-keys signatures, dangerous mount paths, and common su binaries (`/system/xbin/su`, `/sbin/su`, etc.).
   - **Emulator & Virtual Environment Detection**: Identification of emulated environments (AVD, Genymotion, QEMU) inspecting build properties, hardware fingerprints, and communication pipes.
@@ -42,6 +42,9 @@
   - **Screenshot & Recording Blocking**: Dynamic application of `WindowManager.LayoutParams.FLAG_SECURE` preventing capture through user shortcuts, untrusted capture services, and screen recorders.
   - **Recents / App Switcher Obscuration**: Automatic window preview blanking in the Android multitask switcher to protect sensitive views.
   - **Jetpack Compose Lifecycle Integration (`SecureScreenEffect`)**: Automatic declarative enablement while composable screens or modal dialogs remain in composition, reverting to previous states on disposal.
+- **Network Security & MitM Protection (`api/NetworkSecurityManager`)**:
+  - **SSL/TLS Certificate Pinning**: OkHttp `CertificatePinner` generation and automated client builder binding with SHA-256 public key pins, neutralizing Man-in-the-Middle (MitM) certificate substitution.
+  - **Untrusted / User CA Detection**: Introspects `AndroidCAStore` for user-installed root certificates (`user:` prefix) commonly injected by traffic capture proxies (Charles Proxy, Burp Suite, mitmproxy).
 - **Biometric Authentication (`api/BiometricAuthManager`)**:
     - Unified hardware readiness and enrollment verification via `canAuthenticate()`.
     - Biometric dialog orchestration with optional device credential fallback (PIN, pattern, password).
@@ -72,7 +75,10 @@ dependencies {
 }
 ```
 
-Ensure your project targets `minSdk = 24` or higher.
+Ensure your project targets `minSdk = 24` or higher and includes Internet permission when testing network features:
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+```
 
 ### Quick Start
 
@@ -91,7 +97,7 @@ passphraseManager.getOrCreatePassphrase(filename = "db_passphrase.bin", length =
     }
 ```
 
-#### 2. Encrypted Key-Value Storage (`SecurePreferencesImpl`)
+#### 2. Encrypted Key-Value Storage (`SecurePreferences`)
 ```kotlin
 import com.github.jragcer.securitycore.storage.SecurePreferences
 
@@ -115,7 +121,7 @@ SecurePreferences.create(context, fileName = "app_secure_prefs")
     }
 ```
 
-#### 3. Encrypted File Persistence (`SecureFileStorageImpl`)
+#### 3. Encrypted File Persistence (`SecureFileStorage`)
 ```kotlin
 import androidx.lifecycle.lifecycleScope
 import com.github.jragcer.securitycore.storage.SecureFileStorage
@@ -250,6 +256,27 @@ fun SensitivePaymentScreen() {
     // Protected UI content
 }
 ```
+#### 9. Network Security, Certificate Pinning & MitM Detection
+```kotlin
+import com.github.jragcer.securitycore.SecureCore
+import okhttp3.OkHttpClient
+import okhttp3.Request
+
+val networkManager = SecureCore.createNetworkSecurityManager(context)
+
+// 1. Detect suspicious user-installed CAs (e.g., Charles Proxy / Burp Suite)
+val hasSuspiciousProxy = networkManager.hasUserInstalledCertificates()
+
+// 2. Configure OkHttp with SHA-256 certificate pins
+val pins = mapOf(
+    "api.example.com" to listOf(
+        "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", // Primary pin
+        "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="  // Backup pin
+    )
+)
+
+val client = networkManager.applyPinning(OkHttpClient.Builder(), pins).build()
+```
 
 ### Testing
 Run unit tests and instrumented tests via Gradle:
@@ -264,15 +291,16 @@ Run unit tests and instrumented tests via Gradle:
 
 ### Architecture & Security Overview
 
-| Component             | Underlying Technology                                                   | Cryptographic Scheme                              |
-|:----------------------|:------------------------------------------------------------------------|:--------------------------------------------------|
-| **Passphrase Engine** | `EncryptedFile` + Android Keystore                                      | `AES-256 GCM HKDF 4KB`                            |
-| **Preference Engine** | `EncryptedSharedPreferences`                                            | Keys: `AES-256 SIV`<br>Values: `AES-256 GCM`      |
-| **File Engine**       | `EncryptedFile` + IO Streams                                            | `AES-256 GCM HKDF 4KB`                            |
-| **Biometric Engine**  | AndroidX `BiometricPrompt`                                              | Hardware-backed Biometric / CryptoObject          |
-| **Integrity Engine**  | Multi-heuristic detection ( `su`,`/proc/self/maps`,`Build properties` ) | Runtime Anti-Tamper & Environment Analysis        |
-| **Tamper Protection** | `SigningInfosu`/`PackageManager` + `MessageDigest` )                    | SHA-256 Certificate Fingerprinting & Origin Check |
-| **Screen Protection** | `WindowManager.LayoutParams.FLAG_SECURE`                                | OS Window Privacy Buffer Masking                  |
+| Component              | Underlying Technology                                                   | Cryptographic Scheme                              |
+|:-----------------------|:------------------------------------------------------------------------|:--------------------------------------------------|
+| **Passphrase Engine**  | `EncryptedFile` + Android Keystore                                      | `AES-256 GCM HKDF 4KB`                            |
+| **Preference Engine**  | `EncryptedSharedPreferences`                                            | Keys: `AES-256 SIV`<br>Values: `AES-256 GCM`      |
+| **File Engine**        | `EncryptedFile` + IO Streams                                            | `AES-256 GCM HKDF 4KB`                            |
+| **Biometric Engine**   | AndroidX `BiometricPrompt`                                              | Hardware-backed Biometric / CryptoObject          |
+| **Integrity Engine**   | Multi-heuristic detection ( `su`,`/proc/self/maps`,`Build properties` ) | Runtime Anti-Tamper & Environment Analysis        |
+| **Tamper Protection**  | `SigningInfosu`/`PackageManager` + `MessageDigest` )                    | SHA-256 Certificate Fingerprinting & Origin Check |
+| **Screen Protection**  | `WindowManager.LayoutParams.FLAG_SECURE`                                | OS Window Privacy Buffer Masking                  |
+| **Network Security**   | OkHttp `CertificatePinner` + `AndroidCAStore`                           | Public Key SHA-256 Hash Pinning & Root CA Audit   |
 
 ### License
 Distributed under the MIT License. See `LICENSE` for more information.
@@ -282,22 +310,22 @@ Distributed under the MIT License. See `LICENSE` for more information.
 <a name="español"></a>
 ## Español
 
-`SecureCore` es un SDK de seguridad para Android de nivel empresarial diseñado para simplificar tareas de criptografía, persistencia segura, autenticación biométrica, evaluación de integridad en tiempo de ejecución, protección contra modificaciones del APK, privacidad de pantalla y validación de hardware con el mínimo código boilerplate.
+`SecureCore` es un SDK de seguridad para Android de nivel empresarial diseñado para simplificar tareas de criptografía, persistencia segura, autenticación biométrica, evaluación de integridad en tiempo de ejecución, protección contra modificaciones del APK, privacidad de pantalla, fijación de certificados SSL/TLS (pinning), detección de ataques MitM y validación de hardware con el mínimo código boilerplate.
 
-> **Versión actual:** `1.4.0` (Consulta [CHANGELOG.md](CHANGELOG.md) para ver los detalles de la versión)
+> **Versión actual:** `1.5.0` (Consulta [CHANGELOG.md](CHANGELOG.md) para ver los detalles de la versión)
 
 ### Arquitectura
 
 `SecureCore` aplica una estricta segregación bajo el patrón **API / Internal / Factory** en todos sus módulos:
-- **`api/`**: Interfaces públicas (`PassphraseManager`, `SecurePreferences`, `SecureFileStorage`, `BiometricAuthManager`, `IntegrityManager`, `TamperProtectionManager`) y modelos fuertemente tipados (`BiometricResult`, `BiometricStatus`, `IntegrityReport`, `ThreatType`, `AppSignatureStatus`, `ScreenProtectionManager`). Los consumidores únicamente interactúan con estos contratos.
+- **`api/`**: Interfaces públicas (`PassphraseManager`, `SecurePreferences`, `SecureFileStorage`, `BiometricAuthManager`, `IntegrityManager`, `TamperProtectionManager`, `ScreenProtectionManager`, `NetworkSecurityManager`) y modelos fuertemente tipados (`BiometricResult`, `BiometricStatus`, `IntegrityReport`, `ThreatType`, `AppSignatureStatus`). Los consumidores únicamente interactúan con estos contratos.
 - **`internal/`**: Todas las implementaciones (`*Impl`, `RootDetector`, `EmulatorDetector`, `HookDetector`) quedan encapsuladas mediante el modificador de visibilidad `internal` de Kotlin, protegiendo a los desarrolladores de cambios de plataforma que rompan compatibilidad y aislando las dependencias del sistema operativo y de terceros.
-- **`SecureCore` (Factoría)**: Fachada única y unificada que provee métodos factoría de inicialización (`createPassphraseManager()`, `createSecurePreferences()`, `createBiometricAuthManager()`, `createIntegrityManager()`, `createTamperProtectionManager()`, `createScreenProtectionManager()`, etc.) y herramientas de validación de integridad del hardware.
+- **`SecureCore` (Factoría)**: Fachada única y unificada que provee métodos factoría de inicialización (`createPassphraseManager()`, `createSecurePreferences()`, `createBiometricAuthManager()`, `createIntegrityManager()`, `createTamperProtectionManager()`, `createScreenProtectionManager()`, `createNetworkSecurityManager()`, etc.) y herramientas de validación de integridad del hardware.
 
 ### Características
 - **Clave maestra respaldada por hardware**: Integración transparente con Android Keystore (TEE / StrongBox) mediante `AES-256 GCM`.
-- **`PassphraseManagerImpl`**: Genera y persiste frases de contraseña con alta entropía cifradas en disco. Descarta automáticamente los bytes nulos (`0x00`), asegurando compatibilidad directa con motores de base de datos nativos como SQLCipher.
-- **`SecurePreferencesImpl`**: Almacenamiento clave-valor cifrado con tipado estricto mediante `EncryptedSharedPreferences` (`AES-256 SIV` para claves y `AES-256 GCM` para valores), con serialización JSON integrada para modelos personalizados con Gson.
-- **`SecureFileStorageImpl`**: Operaciones seguras sobre ficheros ejecutadas fuera del hilo principal (`Dispatchers.IO`) mediante corrutinas de Kotlin.
+- **`PassphraseManager`**: Genera y persiste frases de contraseña con alta entropía cifradas en disco. Descarta automáticamente los bytes nulos (`0x00`), asegurando compatibilidad directa con motores de base de datos nativos como SQLCipher.
+- **`SecurePreferences`**: Almacenamiento clave-valor cifrado con tipado estricto mediante `EncryptedSharedPreferences` (`AES-256 SIV` para claves y `AES-256 GCM` para valores), con serialización JSON integrada para modelos personalizados con Gson.
+- **`SecureFileStorage`**: Operaciones seguras sobre ficheros ejecutadas fuera del hilo principal (`Dispatchers.IO`) mediante corrutinas de Kotlin.
 - **Integridad del Dispositivo y Entorno de Ejecución (`api/IntegrityManager`)**:
   - Detección de Root: Análisis heurístico de aplicaciones de gestión de superusuario, firmas `test-keys`, puntos de montaje sospechosos y binarios `su` habituales (`/system/xbin/su`, `/sbin/su`, etc.).
   - Detección de Emuladores y Entornos Virtuales: Identificación de entornos virtualizados (AVD, Genymotion, QEMU) mediante huellas en propiedades del sistema (`Build`), hardware y canales de comunicación simulados.
@@ -311,6 +339,9 @@ Distributed under the MIT License. See `LICENSE` for more information.
   - **Bloqueo de Capturas y Grabaciones**: Aplicación dinámica de `WindowManager.LayoutParams.FLAG_SECURE` para impedir capturas de pantalla, grabaciones de vídeo y visualización remota no autorizada.
   - **Ocultación en Multitarea / Recientes**: Oculta la vista previa de la app en el selector de aplicaciones recientes del sistema Android.
   - **Integración con Jetpack Compose (`SecureScreenEffect`)**: Efecto de ciclo de vida declarativo (`DisposableEffect`) que protege automáticamente composables o diálogos mientras permanezcan en composición y restaura el estado al desmontarse.
+- **Seguridad de Red y Protección MitM (`api/NetworkSecurityManager`)**:
+  - **Fijación de Certificados SSL/TLS (Certificate Pinning)**: Generación y vinculación automatizada de `CertificatePinner` en `OkHttpClient.Builder` con hashes de clave pública SHA-256 para neutralizar la intercepción de tráfico.
+  - **Detección de CAs de Usuario / Proxies**: Análisis del almacén `AndroidCAStore` para detectar certificados raíz instalados por el usuario o perfiles MDM (prefijo `user:`), habituales en herramientas de interceptación (Charles Proxy, Burp Suite, mitmproxy).
 - **Autenticación Biométrica (`api/BiometricAuthManager`)**:
     - Comprobación de disponibilidad de hardware y credenciales registradas mediante `canAuthenticate()`.
     - Despliegue de prompts biométricos nativos con soporte para credenciales del dispositivo (PIN, patrón, contraseña).
@@ -340,6 +371,11 @@ dependencies {
 }
 ```
 
+Asegúrate de que tu proyecto tenga como target `minSdk = 24` o superior e incluya el permiso de acceso a Internet al probar funcionalidades de red:
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+```
+
 ### Guía rápida de uso
 
 #### 1. Generar una clave segura (ej. para SQLCipher)
@@ -357,7 +393,7 @@ passphraseManager.getOrCreatePassphrase(filename = "db_passphrase.bin", length =
     }
 ```
 
-#### 2. Almacenamiento clave-valor cifrado (`SecurePreferencesImpl`)
+#### 2. Almacenamiento clave-valor cifrado (`SecurePreferences`)
 ```kotlin
 import com.github.jragcer.securitycore.storage.SecurePreferences
 
@@ -381,7 +417,7 @@ SecurePreferences.create(context, fileName = "app_secure_prefs")
     }
 ```
 
-#### 3. Persistencia de ficheros cifrados (`SecureFileStorageImpl`)
+#### 3. Persistencia de ficheros cifrados (`SecureFileStorage`)
 ```kotlin
 import androidx.lifecycle.lifecycleScope
 import com.github.jragcer.securitycore.storage.SecureFileStorage
@@ -517,6 +553,27 @@ fun SensitivePaymentScreen() {
 }
 ```
 
+#### 9. Seguridad de Red, Certificate Pinning y Detección MitM
+```kotlin
+import com.github.jragcer.securitycore.SecureCore
+import okhttp3.OkHttpClient
+
+val networkManager = SecureCore.createNetworkSecurityManager(context)
+
+// 1. Detectar CAs sospechosas instaladas por el usuario (Charles/Burp)
+val proxyDetectado = networkManager.hasUserInstalledCertificates()
+
+// 2. Aplicar pines SHA-256 al builder de OkHttpClient
+val pines = mapOf(
+    "api.midominio.com" to listOf(
+        "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="
+    )
+)
+
+val client = networkManager.applyPinning(OkHttpClient.Builder(), pines).build()
+```
+
 ### Pruebas (Testing)
 Ejecuta la suite de pruebas unitarias o instrumentadas:
 
@@ -530,15 +587,16 @@ Ejecuta la suite de pruebas unitarias o instrumentadas:
 
 ### Arquitectura y esquema de seguridad
 
-| Componente                | Tecnología base                                                               | Esquema criptográfico                                          |
-|:--------------------------|:------------------------------------------------------------------------------|:---------------------------------------------------------------|
-| **Motor de contraseñas**  | `EncryptedFile` + Android Keystore                                            | `AES-256 GCM HKDF 4KB`                                         |
-| **Motor de preferencias** | `EncryptedSharedPreferences`                                                  | Claves: `AES-256 SIV`<br>Valores: `AES-256 GCM`                |
-| **Motor de ficheros**     | `EncryptedFile` + Flujos de E/S                                               | `AES-256 GCM HKDF 4KB`                                         |
-| **Motor biométrico**      | AndroidX `BiometricPrompt`                                                    | Biometría respaldada por hardware / CryptoObject               |
-| **Motor de integridad**   | Detección heurística múltiple ( `su`, `/proc/self/maps`, `propiedades Build`) | Análisis de entorno y mitigación de manipulación (Anti-Tamper) |
-| **Protección Tamper**     | `SigningInfo`/`PackageManager` + `MessageDigest`)                             | Huella SHA-256 de Certificados e Inspección de Origen          |
-| **Protección de Pantalla**| `WindowManager.LayoutParams.FLAG_SECURE`                                      | Enmascaramiento de Buffer de Ventana a nivel SO                |
+| Componente                 | Tecnología base                                                               | Esquema criptográfico                                          |
+|:---------------------------|:------------------------------------------------------------------------------|:---------------------------------------------------------------|
+| **Motor de contraseñas**   | `EncryptedFile` + Android Keystore                                            | `AES-256 GCM HKDF 4KB`                                         |
+| **Motor de preferencias**  | `EncryptedSharedPreferences`                                                  | Claves: `AES-256 SIV`<br>Valores: `AES-256 GCM`                |
+| **Motor de ficheros**      | `EncryptedFile` + Flujos de E/S                                               | `AES-256 GCM HKDF 4KB`                                         |
+| **Motor biométrico**       | AndroidX `BiometricPrompt`                                                    | Biometría respaldada por hardware / CryptoObject               |
+| **Motor de integridad**    | Detección heurística múltiple ( `su`, `/proc/self/maps`, `propiedades Build`) | Análisis de entorno y mitigación de manipulación (Anti-Tamper) |
+| **Protección Tamper**      | `SigningInfo`/`PackageManager` + `MessageDigest`)                             | Huella SHA-256 de Certificados e Inspección de Origen          |
+| **Protección de Pantalla** | `WindowManager.LayoutParams.FLAG_SECURE`                                      | Enmascaramiento de Buffer de Ventana a nivel SO                |
+| **Seguridad de Red**       | OkHttp `CertificatePinner` + `AndroidCAStore`                                 | Fijación SHA-256 de Clave Pública y Auditoría de CAs Raíz      |
 
 ### Licencia
 Distribuido bajo la licencia MIT. Consulta el archivo `LICENSE` para obtener más información.

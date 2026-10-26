@@ -7,9 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [1.5.0] - 2026-10-26
+
 ### Added
-- Future features in development.
+
+* **Network Security & Certificate Pinning Module (`api/network`)**:
+  * `NetworkSecurityManager`: Public contract interface providing network security capabilities to mitigate Man-in-the-Middle (MitM) attacks, enforce SSL/TLS certificate public key pinning, and audit device trust store certificates.
+  * `NetworkSecurityManagerImpl`: Concrete implementation providing:
+    * `createCertificatePinner()`: Utility configuring OkHttp `CertificatePinner` with SHA-256 public key hash rules (`sha256/...`).
+    * `applyPinning()`: Seamless chaining for `OkHttpClient.Builder` to bind security pins directly to HTTP client instances.
+    * `hasUserInstalledCertificates()`: Trust store heuristic auditing the system's `AndroidCAStore` for user-installed or MDM root certificates (prefixed with `user:`), detecting active network interception proxies (e.g., Charles Proxy, Burp Suite, mitmproxy).
+  * Unified facade entrypoint via `SecureCore.createNetworkSecurityManager(context)`.
+
+* **UI & Interactive Demo Integration**:
+  * Integrated dedicated `Network Security & SSL Pinning` controls within `SecurityDemoScreen`.
+  * Real-time MitM detection testing, invalid pin handshake rejection verification (`SSLPeerUnverifiedException`), and dynamic host public key pin discovery.
+
+* **Dependencies & Build System**:
+  * Integrated `com.squareup.okhttp3:okhttp` dependency across library and demo applications via `libs.versions.toml`.
 
 ---
 
