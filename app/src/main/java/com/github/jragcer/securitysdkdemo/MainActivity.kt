@@ -75,6 +75,7 @@ class MainActivity: FragmentActivity() {
         val tamperProtectionManager = remember { SecureCore.createTamperProtectionManager(context) }
         val screenProtectionManager = remember { SecureCore.createScreenProtectionManager() }
         val networkSecurityManager = remember { SecureCore.createNetworkSecurityManager(context) }
+        val cryptoManager = remember { SecureCore.createCryptoManager("DemoMasterKey") }
 
         var isScreenProtected by remember {
             mutableStateOf(screenProtectionManager.isProtectionActive(activity))
@@ -115,6 +116,77 @@ class MainActivity: FragmentActivity() {
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // ==========================================
+            ExpandableSectionCard(
+                title = "Hardware-backed Crypto (AES-256-GCM)",
+                initiallyExpanded = false
+            ) {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        try {
+                            val samplePayload = "Confidential Payload - ${System.currentTimeMillis()}"
+                            val rawBytes = samplePayload.toByteArray(Charsets.UTF_8)
+
+                            // 1. Encrypt arbitrary ByteArray
+                            val encryptedBytes = cryptoManager.encrypt(rawBytes)
+
+                            // 2. Decrypt back and verify 128-bit GCM tag
+                            val decryptedBytes = cryptoManager.decrypt(encryptedBytes)
+                            val recoveredText = String(decryptedBytes, Charsets.UTF_8)
+
+                            val summary = buildString {
+                                appendLine("Keystore AES-GCM Status:")
+                                appendLine(" • Original: $samplePayload")
+                                appendLine(" • Ciphertext Size: ${encryptedBytes.size} bytes (IV + Tag included)")
+                                appendLine(" • Decrypted: $recoveredText")
+                                appendLine(" • Integrity Verified: ${samplePayload == recoveredText}")
+                            }
+                            statusText = summary.trimEnd()
+                        } catch (e: Exception) {
+                            statusText = "Crypto Error: ${e.message}"
+                        }
+                    }
+                ) {
+                    Text("Test KeyStore Encrypt & Decrypt")
+                }
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        try {
+                            // Generate a 64 KB test payload for stream verification
+                            val streamPayload = ByteArray(65536) { (it % 255).toByte() }
+                            val inputStream = java.io.ByteArrayInputStream(streamPayload)
+                            val encryptedOut = java.io.ByteArrayOutputStream()
+
+                            // Stream encryption without holding entire pipeline in RAM
+                            cryptoManager.encrypt(inputStream, encryptedOut)
+                            val cipherBytes = encryptedOut.toByteArray()
+
+                            // Stream decryption
+                            val cipherIn = java.io.ByteArrayInputStream(cipherBytes)
+                            val decryptedOut = java.io.ByteArrayOutputStream()
+                            cryptoManager.decrypt(cipherIn, decryptedOut)
+
+                            val recoveredBytes = decryptedOut.toByteArray()
+                            val isDataIdentical = streamPayload.contentEquals(recoveredBytes)
+
+                            statusText = buildString {
+                                appendLine("Stream Processing Result:")
+                                appendLine(" • Payload Size: ${streamPayload.size / 1024} KB")
+                                appendLine(" • Cipher Stream Size: ${cipherBytes.size} bytes")
+                                appendLine(" • Stream Round-trip: ${if (isDataIdentical) "SUCCESS (Match)" else "FAILURE (Corrupted)"}")
+                            }.trimEnd()
+                        } catch (e: Exception) {
+                            statusText = "Streaming Error: ${e.message}"
+                        }
+                    }
+                ) {
+                    Text("Test 64 KB Stream Encryption")
+                }
+            }
 
             // ==========================================
             ExpandableSectionCard(

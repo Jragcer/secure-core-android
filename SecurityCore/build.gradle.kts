@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose)
+    `maven-publish`
 }
 
 android {
@@ -106,4 +107,41 @@ dependencies {
     androidTestImplementation(libs.androidx.runner)
     androidTestImplementation(libs.androidx.core)
     androidTestImplementation(libs.kotlinx.coroutines.test)
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            register<MavenPublication>("release") {
+                from(components["release"])
+
+                groupId = "com.github.jragcer"
+                artifactId = "securitycore"
+                version = libs.versions.securitycore.get()
+
+                pom {
+                    name.set("SecurityCore")
+                    description.set("Lightweight Android security SDK providing hardware-backed encryption (AES-256-GCM & streaming), biometric auth, root/tamper detection, screen capture protection, and network certificate pinning.")
+                    url.set("https://github.com/Jragcer/secure-core-android")
+                    licenses {
+                        license {
+                            name.set("The MIT License")
+                            url.set("https://opensource.org/licenses/MIT")
+                        }
+                    }
+                    developers {
+                        developer {
+                            id.set("jragcer")
+                            name.set("Jragcer")
+                        }
+                    }
+                    scm {
+                        connection.set("scm:git:git://github.com/Jragcer/secure-core-android.git")
+                        developerConnection.set("scm:git:ssh://github.com/Jragcer/secure-core-android.git")
+                        url.set("https://github.com/Jragcer/secure-core-android")
+                    }
+                }
+            }
+        }
+    }
 }

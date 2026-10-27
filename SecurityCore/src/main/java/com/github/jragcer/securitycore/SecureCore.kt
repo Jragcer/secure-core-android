@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import com.github.jragcer.securitycore.api.biometric.BiometricAuthManager
+import com.github.jragcer.securitycore.api.crypto.CryptoManager
 import com.github.jragcer.securitycore.api.integrity.IntegrityManager
 import com.github.jragcer.securitycore.api.network.NetworkSecurityManager
 import com.github.jragcer.securitycore.api.screen.ScreenProtectionManager
@@ -12,6 +13,7 @@ import com.github.jragcer.securitycore.api.storage.SecureFileStorage
 import com.github.jragcer.securitycore.api.storage.SecurePreferences
 import com.github.jragcer.securitycore.api.tamper.TamperProtectionManager
 import com.github.jragcer.securitycore.internal.biometric.BiometricAuthManagerImpl
+import com.github.jragcer.securitycore.internal.crypto.KeystoreCryptoManager
 import com.github.jragcer.securitycore.internal.integrity.IntegrityManagerImpl
 import com.github.jragcer.securitycore.internal.network.NetworkSecurityManagerImpl
 import com.github.jragcer.securitycore.internal.screen.ScreenProtectionManagerImpl
@@ -121,5 +123,20 @@ object SecureCore {
      */
     fun createNetworkSecurityManager(context: Context): NetworkSecurityManager {
         return NetworkSecurityManagerImpl(context.applicationContext)
+    }
+
+    /**
+     * Creates an instance of [CryptoManager] backed by hardware security (AndroidKeyStore).
+     *
+     * Uses AES-256-GCM for authenticated encryption, ensuring confidentiality and integrity
+     * across byte arrays and data streams.
+     *
+     * @param keyAlias The alias under which the master secret key is created or retrieved.
+     * @param provider The JCA provider name, defaulting to "AndroidKeyStore".
+     * @return A configured [CryptoManager] implementation.
+     */
+    fun createCryptoManager(keyAlias: String = "AppMasterKey",
+                            provider: String = KeystoreCryptoManager.KEYSTORE_PROVIDER): CryptoManager {
+        return KeystoreCryptoManager(keyAlias)
     }
 }
