@@ -6,6 +6,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
 [![Kotlin Version](https://img.shields.io/badge/Kotlin-2.0.21-blue.svg)](https://kotlinlang.org)
 [![Min SDK](https://img.shields.io/badge/Min%20SDK-24-brightgreen.svg)](https://android.com)
+[![JitPack](https://jitpack.io/v/jragcer/secure-core-android.svg)](https://jitpack.io/#jragcer/secure-core-android)
 
 *Read this in [English](#english) | Léelo en [Español](#español)*
 
@@ -60,17 +61,25 @@
 
 
 ### Installation
-Add the library module to your project's `settings.gradle.kts`:
+
+1. Add the JitPack repository in your root `settings.gradle.kts`:
 
 ```kotlin
-include(":SecurityCore")
+dependencyResolutionManagement {
+  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+  repositories {
+    google()
+    mavenCentral()
+    maven { url = uri("[https://jitpack.io](https://jitpack.io)") }
+  }
+}
 ```
 
-Then add the dependency in your application module's `build.gradle.kts`:
+2. Add the dependency in your application module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation(project(":SecurityCore"))
+    implementation("com.github.jragcer:secure-core-android:1.6.0")
     
     // Coroutines support for asynchronous file storage
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
@@ -377,17 +386,24 @@ Distributed under the MIT License. See `LICENSE` for more information.
 - **Manejo resiliente de errores**: Implementa el patrón funcional `Result<T>` en todas sus operaciones para prevenir cierres inesperados por excepciones criptográficas.
 
 ### Instalación
-Añade el módulo de la biblioteca a tu archivo `settings.gradle.kts`:
+1. Añade el repositorio de JitPack en tu archivo raíz `settings.gradle.kts`:
 
 ```kotlin
-include(":SecurityCore")
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("[https://jitpack.io](https://jitpack.io)") }
+    }
+}
 ```
 
-Luego declara la dependencia en el `build.gradle.kts` de tu aplicación:
+2. Añade la dependencia en el `build.gradle.kts` de tu aplicación:
 
 ```kotlin
 dependencies {
-    implementation(project(":SecurityCore"))
+    implementation("com.github.jragcer:secure-core-android:1.6.0")
     
     // Soporte de corrutinas para operaciones asíncronas de ficheros
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
