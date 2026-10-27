@@ -130,12 +130,3 @@ inline fun <reified T> SecurePreferences.getObject(key: String): T? {
     val type = object : TypeToken<T>() {}.type
     return getObject(key, type)
 }
-
-inline fun <reified T> SecurePreferences.putObject(key: String, value: T?) {
-    val type = object : TypeToken<T>() {}.type
-    if (value == null) {
-        remove(key)
-    } else {
-        putObject(key, value)
-    }
-}
