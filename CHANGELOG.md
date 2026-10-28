@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.0] - 2026-10-27
+
+### Added
+- **Asymmetric Cryptography & Digital Signatures (`AsymmetricCryptoManager`):**
+  - RSA and Elliptic Curve (EC P-256 / ECDSA) key pair generation in the `AndroidKeyStore`. The private key never leaves the Keystore; it is hardware-backed (TEE) only on devices that support it. StrongBox is not requested.EC keys use explicit P-256 curve configuration and SHA-256 digest.
+  - RSA public-key encryption and Keystore-held private-key decryption with `RSA/ECB/OAEPWithSHA-256AndMGF1Padding` and explicit `MGF1ParameterSpec.SHA1` (payload limit ~190 bytes for RSA-2048; use hybrid encryption for larger payloads).
+  - Digital signature generation and verification (`SHA256withRSA` and `SHA256withECDSA`).
+  - Standard X.509/DER public key export via `getPublicKeyEncoded()` for backend transmission.
+  - Public factory method `SecureCore.createAsymmetricCryptoManager(alias, algorithm)`.
+  - **Reliability & Boundary Validations:**
+    - Serialized key pair generation preventing concurrent threads sharing an alias from producing conflicting keys.
+    - Strict alias checks throwing a descriptive `IllegalStateException` on key type or size collisions.
+    - Pre-flight payload size checks in `encrypt()` throwing `IllegalArgumentException` on oversized inputs.
+    - Graceful signature verification returning `false` rather than throwing on malformed signature data.
+- **README disclaimer:** AI-assisted development, no independent security audit, heuristic detection limits, and no warranty.
+- **Test Coverage:**
+  - Instrumented test suite (`androidTest`) covering the Keystore key lifecycle and asymmetric crypto operations.
+  - JVM unit test suite (`test`) covering algorithm configuration models, X.509 reconstruction, and edge-case invariants.
+- **Quality & Security Pipeline:**
+  - **CodeQL** static analysis in GitHub Actions for automated vulnerability and CWE scanning.
+  - **Codecov** integration for test coverage reporting across JVM and instrumented test suites.
+
+### Changed
+- `SecureCore.createCryptoManager(keyAlias, provider)` is deprecated: `provider` was never applied and the AndroidKeyStore is always used. Use `createCryptoManager(keyAlias)`.
+- Documentation no longer claims StrongBox backing or absolute hardware protection, and the wording on detection, tamper checks, screen protection and certificate pinning now matches actual behaviour.
+- Quick Start examples updated to the current API.
+
+### Fixed
+- `AsymmetricCryptoManager.verify()` returns `false` instead of throwing for malformed signatures.
+- Creating a manager on an alias that already holds a different key type or size now fails immediately with a descriptive `IllegalStateException`.
+- Key pair creation is now serialised, so concurrent instances sharing an alias cannot generate different keys.
+- `AsymmetricCryptoManager.encrypt()` validates the RSA-OAEP payload limit and reports it with a descriptive `IllegalArgumentException`.
+- EC keys now use an explicit P-256 curve and are limited to SHA-256.
+
+---
+
 ## [1.6.0] - 2026-10-27
 
 ### Added

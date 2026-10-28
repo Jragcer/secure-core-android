@@ -1,7 +1,6 @@
 package com.github.jragcer.securitysdkdemo
 
 import android.os.Bundle
-import android.util.Base64
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +35,7 @@ import androidx.fragment.app.FragmentActivity
 import com.github.jragcer.securitycore.SecureCore
 import com.github.jragcer.securitycore.api.biometric.BiometricResult
 import com.github.jragcer.securitycore.api.biometric.BiometricStatus
+import com.github.jragcer.securitycore.api.crypto.AsymmetricAlgorithm
 import com.github.jragcer.securitysdkdemo.components.ExpandableSectionCard
 import com.github.jragcer.securitysdkdemo.components.SensitiveDataModal
 import kotlinx.coroutines.Dispatchers
@@ -76,6 +76,13 @@ class MainActivity: FragmentActivity() {
         val screenProtectionManager = remember { SecureCore.createScreenProtectionManager() }
         val networkSecurityManager = remember { SecureCore.createNetworkSecurityManager(context) }
         val cryptoManager = remember { SecureCore.createCryptoManager("DemoMasterKey") }
+        val asymmetricCryptoManager = remember { SecureCore.createAsymmetricCryptoManager("demo_asymmetric_key",
+            AsymmetricAlgorithm.RSA(keySize = 2048))}
+
+        // Variables temporales para la demo interactiva entre botones
+        var lastEncryptedBytes by remember { mutableStateOf<ByteArray?>(null) }
+        var lastSignatureBytes by remember { mutableStateOf<ByteArray?>(null) }
+        val samplePayload = remember { "Confidential Transaction #9842".toByteArray(Charsets.UTF_8) }
 
         var isScreenProtected by remember {
             mutableStateOf(screenProtectionManager.isProtectionActive(activity))
@@ -119,7 +126,147 @@ class MainActivity: FragmentActivity() {
 
             // ==========================================
             ExpandableSectionCard(
-                title = "Hardware-backed Crypto (AES-256-GCM)",
+                title = "Asymmetric Cryptography & Signatures",
+                initiallyExpanded = false
+            ) {
+                // 1. Export Public Key
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        runCatching {
+                            val publicKey = asymmetricCryptoManager.getPublicKey()
+                            val encodedBytes = asymmetricCryptoManager.getPublicKeyEncoded()
+                            val base64Key = android.util.Base64.encodeToString(encodedBytes, android.util.Base64.NO_WRAP)
+
+                            statusText = "Public Key Exported:\n" +
+                                    " • Algorithm: ${publicKey.algorithm}\n" +
+                                    " • Format: ${publicKey.format}\n" +
+                                    " • Raw Size: ${encodedBytes.size} bytes\n" +
+                                    " • Base64 (X.509):\n${base64Key.take(64)}..."
+                        }.onFailure { error ->
+                            statusText = "Export Failed: ${error.localizedMessage}"
+                        }
+                    }
+                ) {
+                    Text("Export Public Key (X.509)")
+                }
+
+                // 2. Encrypt with Public Key
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        runCatching {
+                            val encrypted = asymmetricCryptoManager.encrypt(samplePayload)
+                            lastEncryptedBytes = encrypted
+                            val hexEncrypted = encrypted.joinToString("") { "%02x".format(it) }
+
+                            statusText = "RSA-OAEP Encrypted:\n" +
+                                    " • Input: \"${String(samplePayload)}\"\n" +
+                                    " • Output Size: ${encrypted.size} bytes\n" +
+                                    " • Ciphertext (Hex): ${hexEncrypted.take(48)}..."
+                        }.onFailure { error ->
+                            statusText = "Encryption Failed: ${error.localizedMessage}"
+                        }
+                    }
+                ) {
+                    Text("Encrypt with Public Key")
+                }
+
+                // 3. Decrypt with Private Key (Hardware KeyStore)
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val toDecrypt = lastEncryptedBytes
+                        if (toDecrypt == null) {
+                            statusText = "Please encrypt data first."
+                            return@OutlinedButton
+                        }
+
+                        runCatching {
+                            val decrypted = asymmetricCryptoManager.decrypt(toDecrypt)
+                            val decryptedString = String(decrypted, Charsets.UTF_8)
+
+                            statusText = "RSA Decrypted Successfully:\n" +
+                                    " • Decrypted Text: \"$decryptedString\"\n" +
+                                    " • Match Original: ${samplePayload.contentEquals(decrypted)}"
+                        }.onFailure { error ->
+                            statusText = "Decryption Failed: ${error.localizedMessage}"
+                        }
+                    }
+                ) {
+                    Text("Decrypt with Private Key")
+                }
+
+                // 4. Sign Payload
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        runCatching {
+                            val signature = asymmetricCryptoManager.sign(samplePayload)
+                            lastSignatureBytes = signature
+                            val hexSignature = signature.joinToString("") { "%02x".format(it) }
+
+                            statusText = "Digital Signature Created:\n" +
+                                    " • Payload: \"${String(samplePayload)}\"\n" +
+                                    " • Signature Size: ${signature.size} bytes\n" +
+                                    " • Signature (Hex): ${hexSignature.take(48)}..."
+                        }.onFailure { error ->
+                            statusText = "Signing Failed: ${error.localizedMessage}"
+                        }
+                    }
+                ) {
+                    Text("Sign Data Payload")
+                }
+
+                // 5. Verify Signature (Integrity check + Anti-tampering check)
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val signature = lastSignatureBytes
+                        if (signature == null) {
+                            statusText = "Please generate a signature first."
+                            return@OutlinedButton
+                        }
+
+                        runCatching {
+                            val isValidOriginal = asymmetricCryptoManager.verify(samplePayload, signature)
+
+                            // Tampered test: alter one byte of the payload
+                            val tamperedPayload = "Tampered Transaction #9842".toByteArray(Charsets.UTF_8)
+                            val isValidTampered = asymmetricCryptoManager.verify(tamperedPayload, signature)
+
+                            statusText = "Signature Verification:\n" +
+                                    " • Original Payload Valid: $isValidOriginal\n" +
+                                    " • Tampered Payload Valid: ${if (!isValidTampered) "tampering detected" else "NOT detected!"}"
+                        }.onFailure { error ->
+                            statusText = "Verification Failed: ${error.localizedMessage}"
+                        }
+                    }
+                ) {
+                    Text("Verify Signature & Test Tamper")
+                }
+
+                val ecSigner = remember {
+                    SecureCore.createAsymmetricCryptoManager("demo_ec_signing_key", AsymmetricAlgorithm.EC())
+                }
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        runCatching {
+                            val sig = ecSigner.sign(samplePayload)
+                            val ok = ecSigner.verify(samplePayload, sig)
+                            val encryptBlocked = runCatching { ecSigner.encrypt(samplePayload) }.isFailure
+                            statusText = "EC P-256 sign/verify: $ok (${sig.size} bytes)\n" +
+                                    " • encrypt() rejected for EC: $encryptBlocked"
+                        }.onFailure { statusText = "EC Failed: ${it.localizedMessage}" }
+                    }
+                ) { Text("Sign & Verify with EC P-256") }
+            }
+
+            // ==========================================
+            ExpandableSectionCard(
+                title = "Keystore-backed Crypto (AES-256-GCM)",
                 initiallyExpanded = false
             ) {
                 Button(
@@ -338,6 +485,8 @@ class MainActivity: FragmentActivity() {
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         val currentHash = tamperProtectionManager.getAppSignatureHash()
+                        // DEMO ONLY: comparing the current hash with itself always matches. In a real app,
+                        // hardcode the SHA-256 of your RELEASE certificate as the expected value.
                         val status = tamperProtectionManager.getSignatureStatus(
                             expectedHash = currentHash
                         )
@@ -470,13 +619,7 @@ class MainActivity: FragmentActivity() {
                     onClick = {
                         passphraseManager.getOrCreatePassphrase("demo_passphrase_key")
                             .onSuccess { bytes ->
-                                val hexKey = bytes.joinToString(separator = "") { byte ->
-                                    "%02x".format(byte)
-                                }
-                                val base64Key = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                                statusText = "Passphrase loaded (${bytes.size} bytes):"
-                                statusText += "\nHex->$hexKey"
-                                statusText += "\nBase64->$base64Key"
+                                statusText = "Passphrase loaded (${bytes.size} bytes). Value hidden on purpose."
                             }
                             .onFailure { error ->
                                 statusText = "Passphrase error: ${error.message}"
