@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: [ "main", "feature/**" ]
+    branches: [ "main"]
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -12,6 +12,7 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - '.gitignore'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -85,6 +86,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          slug: Jragcer/secure-core-android
           files: SecurityCore/build/reports/coverage/test/debug/report.xml
           fail_ci_if_error: false
 
