@@ -30,6 +30,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            enableUnitTestCoverage = true
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -90,7 +93,7 @@ dependencies {
     implementation(libs.core.ktx)
     implementation(libs.material)
     implementation(libs.androidx.security.crypto)
-    implementation(libs.gson)
+    api(libs.gson)
     implementation(libs.material3)
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
@@ -121,7 +124,7 @@ afterEvaluate {
 
                 pom {
                     name.set("SecurityCore")
-                    description.set("Lightweight Android security SDK providing hardware-backed encryption (AES-256-GCM & streaming), biometric auth, root/tamper detection, screen capture protection, and network certificate pinning.")
+                    description.set("Lightweight Android security SDK providing hardware-backed symmetric/asymmetric encryption (AES-256-GCM, RSA/EC), digital signatures, biometric auth, root/tamper detection, screen capture protection, and network certificate pinning.")
                     url.set("https://github.com/Jragcer/secure-core-android")
                     licenses {
                         license {

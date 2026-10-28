@@ -1,15 +1,13 @@
-# Mantener clases públicas de SecureCore
--keep class com.github.jragcer.securitycore.storage.** { *; }
+# SecureCore consumer rules
 
-# Atributos de reflexión y anotaciones para Gson
+# Keep generic type info so Gson's TypeToken (used by SecurePreferences.getObject<T>()) works after R8.
 -keepattributes Signature
--keepattributes *Annotation*
--keepclassmembers class * {
-    @com.google.gson.annotations.SerializedName <fields>;
+
+# Tink (pulled in by androidx.security-crypto): its protobuf-lite messages are read by reflection.
+# Tink may already ship this rule; it is kept here as a cheap safety net.
+-keepclassmembers class * extends com.google.crypto.tink.shaded.protobuf.GeneratedMessageLite {
+    <fields>;
 }
 
-# AndroidX Crypto y Tink
--keep class androidx.security.crypto.** { *; }
 -dontwarn androidx.security.crypto.**
--keep class com.google.crypto.tink.** { *; }
 -dontwarn com.google.crypto.tink.**
