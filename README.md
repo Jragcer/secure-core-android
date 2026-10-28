@@ -5,7 +5,7 @@
 [![codecov](https://codecov.io/gh/jragcer/secure-core-android/branch/main/graph/badge.svg)](https://codecov.io/gh/jragcer/secure-core-android)
 [![Latest Release](https://img.shields.io/badge/Release-1.7.0-blue.svg)](https://github.com/jragcer/secure-core-android/releases)
 [![JitPack](https://jitpack.io/v/jragcer/secure-core-android.svg)](https://jitpack.io/#jragcer/secure-core-android)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/Licencia-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
 [![Min SDK](https://img.shields.io/badge/Min%20SDK-24-brightgreen.svg)](https://developer.android.com/tools/releases/platforms)
 [![Compile SDK](https://img.shields.io/badge/Compile%20SDK-37-brightgreen.svg)](https://developer.android.com/tools/releases/platforms)
@@ -372,7 +372,7 @@ Run unit tests and instrumented tests via Gradle:
 | **Asymmetric Crypto**  | `AndroidKeyStore` + RSA/EC KeyPair                                      | RSA OAEP (SHA-256, MGF1-SHA1) + RSA PKCS#1 v1.5 signatures; ECDSA P-256 signatures  |
 
 ### License
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the Apache License, Version 2.0. See [`LICENSE`](LICENSE) for more information.
 
 ---
 
@@ -734,6 +734,6 @@ Ejecuta la suite de pruebas unitarias o instrumentadas:
 | **Criptografía Asimétrica** | `AndroidKeyStore` + Par de Claves RSA/EC                                      | Cifrado RSA OAEP (SHA-256, MGF1-SHA1) y firmas RSA PKCS#1 v1.5; firmas ECDSA P-256 |
 
 ### Licencia
-Distribuido bajo la licencia MIT. Consulta el archivo `LICENSE` para obtener más información.
+Distribuido bajo la Licencia Apache, Versión 2.0. Consulta el archivo [`LICENSE`](LICENSE) para obtener más información.
 
 ---
