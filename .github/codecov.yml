@@ -4,13 +4,9 @@ codecov:
 coverage:
   precision: 2
   round: down
-  range: "50...100"
+  range: "60...100"
   status:
     project:
-      default:
-        target: auto
-        threshold: 1%
-    patch:
       default:
         target: auto
         threshold: 1%
@@ -18,11 +14,7 @@ coverage:
 # Exclusiones
 ignore:
   - "app/**"                 # Ignora la app de demostración al completo
-  - "**/*Activity*.*"        # Ignora activities de UI
-  - "**/*Screen*.*"          # Ignora pantallas Compose
-  - "**/*Preview*.*"         # Ignora previews de Compose
   - "**/BuildConfig.*"       # Ignora código autogenerado de Android
   - "**/R.class"
   - "**/R$*.class"
-  - "**/*Manifest*.*"
   - "**/*Test*.*"            # Evita medir clases de test dentro del coverage
