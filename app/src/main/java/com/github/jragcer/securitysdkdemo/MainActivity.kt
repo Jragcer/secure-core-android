@@ -36,6 +36,7 @@ import com.github.jragcer.securitycore.SecureCore
 import com.github.jragcer.securitycore.api.biometric.BiometricResult
 import com.github.jragcer.securitycore.api.biometric.BiometricStatus
 import com.github.jragcer.securitycore.api.crypto.AsymmetricAlgorithm
+import com.github.jragcer.securitycore.api.crypto.AsymmetricCryptoManager
 import com.github.jragcer.securitysdkdemo.components.ExpandableSectionCard
 import com.github.jragcer.securitysdkdemo.components.SensitiveDataModal
 import kotlinx.coroutines.Dispatchers
@@ -76,8 +77,12 @@ class MainActivity: FragmentActivity() {
         val screenProtectionManager = remember { SecureCore.createScreenProtectionManager() }
         val networkSecurityManager = remember { SecureCore.createNetworkSecurityManager(context) }
         val cryptoManager = remember { SecureCore.createCryptoManager("DemoMasterKey") }
-        val asymmetricCryptoManager = remember { SecureCore.createAsymmetricCryptoManager("demo_asymmetric_key",
-            AsymmetricAlgorithm.RSA(keySize = 2048))}
+
+        // Created off the main thread: the first use of an alias generates the key pair.
+        // Two aliases on purpose: RSA only for encryption, EC only for signing.
+        var encryptionManager by remember { mutableStateOf<AsymmetricCryptoManager?>(null) }
+        var signingManager by remember { mutableStateOf<AsymmetricCryptoManager?>(null) }
+        val keysNotReady = "Asymmetric keys are still being generated. Try again in a moment."
 
         // Variables temporales para la demo interactiva entre botones
         var lastEncryptedBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -93,6 +98,28 @@ class MainActivity: FragmentActivity() {
             if (SecureCore.isStrongBoxSupported(applicationContext)) {
                 statusText += "\nThe device features a dedicated StrongBox Keymaster chip."
             }
+        }
+
+        LaunchedEffect(Unit) {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val rsa = SecureCore.createAsymmetricCryptoManager(
+                        "demo_rsa_encryption_key",
+                        AsymmetricAlgorithm.RSA(keySize = 2048)
+                    )
+                    val ec = SecureCore.createAsymmetricCryptoManager(
+                        "demo_ec_signing_key",
+                        AsymmetricAlgorithm.EC()
+                    )
+                    rsa to ec
+                }
+            }
+            result
+                .onSuccess { (rsa, ec) ->
+                    encryptionManager = rsa
+                    signingManager = ec
+                }
+                .onFailure { statusText = "Asymmetric key setup failed: ${it.localizedMessage}" }
         }
 
         Column (modifier = Modifier.fillMaxSize()
@@ -129,39 +156,52 @@ class MainActivity: FragmentActivity() {
                 title = "Asymmetric Cryptography & Signatures",
                 initiallyExpanded = false
             ) {
-                // 1. Export Public Key
+                // 1. Export both public keys
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
+                        val rsa = encryptionManager
+                        val ec = signingManager
+                        if (rsa == null || ec == null) {
+                            statusText = keysNotReady
+                            return@Button
+                        }
                         runCatching {
-                            val publicKey = asymmetricCryptoManager.getPublicKey()
-                            val encodedBytes = asymmetricCryptoManager.getPublicKeyEncoded()
-                            val base64Key = android.util.Base64.encodeToString(encodedBytes, android.util.Base64.NO_WRAP)
-
-                            statusText = "Public Key Exported:\n" +
-                                    " • Algorithm: ${publicKey.algorithm}\n" +
-                                    " • Format: ${publicKey.format}\n" +
-                                    " • Raw Size: ${encodedBytes.size} bytes\n" +
-                                    " • Base64 (X.509):\n${base64Key.take(64)}..."
+                            fun describe(label: String, manager: AsymmetricCryptoManager): String {
+                                val key = manager.getPublicKey()
+                                val encoded = manager.getPublicKeyEncoded()
+                                val base64 = android.util.Base64.encodeToString(encoded, android.util.Base64.NO_WRAP)
+                                return "$label\n" +
+                                        " • Algorithm: ${key.algorithm}\n" +
+                                        " • Format: ${key.format}\n" +
+                                        " • Size: ${encoded.size} bytes\n" +
+                                        " • Base64 (X.509): ${base64.take(48)}..."
+                            }
+                            statusText = describe("RSA encryption key:", rsa) + "\n\n" + describe("EC signing key:", ec)
                         }.onFailure { error ->
                             statusText = "Export Failed: ${error.localizedMessage}"
                         }
                     }
                 ) {
-                    Text("Export Public Key (X.509)")
+                    Text("Export Public Keys (X.509)")
                 }
 
-                // 2. Encrypt with Public Key
+                // 2. Encrypt with the RSA public key
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
+                        val rsa = encryptionManager
+                        if (rsa == null) {
+                            statusText = keysNotReady
+                            return@Button
+                        }
                         runCatching {
-                            val encrypted = asymmetricCryptoManager.encrypt(samplePayload)
+                            val encrypted = rsa.encrypt(samplePayload)
                             lastEncryptedBytes = encrypted
                             val hexEncrypted = encrypted.joinToString("") { "%02x".format(it) }
 
                             statusText = "RSA-OAEP Encrypted:\n" +
-                                    " • Input: \"${String(samplePayload)}\"\n" +
+                                    " • Input: \"${String(samplePayload, Charsets.UTF_8)}\"\n" +
                                     " • Output Size: ${encrypted.size} bytes\n" +
                                     " • Ciphertext (Hex): ${hexEncrypted.take(48)}..."
                         }.onFailure { error ->
@@ -169,45 +209,52 @@ class MainActivity: FragmentActivity() {
                         }
                     }
                 ) {
-                    Text("Encrypt with Public Key")
+                    Text("Encrypt with RSA Public Key")
                 }
 
-                // 3. Decrypt with Private Key (Hardware KeyStore)
+                // 3. Decrypt with the Keystore-held RSA private key
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
+                        val rsa = encryptionManager
+                        if (rsa == null) {
+                            statusText = keysNotReady
+                            return@OutlinedButton
+                        }
                         val toDecrypt = lastEncryptedBytes
                         if (toDecrypt == null) {
                             statusText = "Please encrypt data first."
                             return@OutlinedButton
                         }
-
                         runCatching {
-                            val decrypted = asymmetricCryptoManager.decrypt(toDecrypt)
-                            val decryptedString = String(decrypted, Charsets.UTF_8)
-
+                            val decrypted = rsa.decrypt(toDecrypt)
                             statusText = "RSA Decrypted Successfully:\n" +
-                                    " • Decrypted Text: \"$decryptedString\"\n" +
+                                    " • Decrypted Text: \"${String(decrypted, Charsets.UTF_8)}\"\n" +
                                     " • Match Original: ${samplePayload.contentEquals(decrypted)}"
                         }.onFailure { error ->
                             statusText = "Decryption Failed: ${error.localizedMessage}"
                         }
                     }
                 ) {
-                    Text("Decrypt with Private Key")
+                    Text("Decrypt with RSA Private Key")
                 }
 
-                // 4. Sign Payload
+                // 4. Sign with the EC key
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
+                        val ec = signingManager
+                        if (ec == null) {
+                            statusText = keysNotReady
+                            return@Button
+                        }
                         runCatching {
-                            val signature = asymmetricCryptoManager.sign(samplePayload)
+                            val signature = ec.sign(samplePayload)
                             lastSignatureBytes = signature
                             val hexSignature = signature.joinToString("") { "%02x".format(it) }
 
-                            statusText = "Digital Signature Created:\n" +
-                                    " • Payload: \"${String(samplePayload)}\"\n" +
+                            statusText = "Digital Signature Created (EC P-256, SHA256withECDSA):\n" +
+                                    " • Payload: \"${String(samplePayload, Charsets.UTF_8)}\"\n" +
                                     " • Signature Size: ${signature.size} bytes\n" +
                                     " • Signature (Hex): ${hexSignature.take(48)}..."
                         }.onFailure { error ->
@@ -215,29 +262,40 @@ class MainActivity: FragmentActivity() {
                         }
                     }
                 ) {
-                    Text("Sign Data Payload")
+                    Text("Sign Data Payload (EC)")
                 }
 
-                // 5. Verify Signature (Integrity check + Anti-tampering check)
+                // 5. Verify, test tampering, a malformed signature, and that EC refuses encrypt()
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
+                        val ec = signingManager
+                        if (ec == null) {
+                            statusText = keysNotReady
+                            return@OutlinedButton
+                        }
                         val signature = lastSignatureBytes
                         if (signature == null) {
                             statusText = "Please generate a signature first."
                             return@OutlinedButton
                         }
-
                         runCatching {
-                            val isValidOriginal = asymmetricCryptoManager.verify(samplePayload, signature)
+                            val isValidOriginal = ec.verify(samplePayload, signature)
 
-                            // Tampered test: alter one byte of the payload
                             val tamperedPayload = "Tampered Transaction #9842".toByteArray(Charsets.UTF_8)
-                            val isValidTampered = asymmetricCryptoManager.verify(tamperedPayload, signature)
+                            val isValidTampered = ec.verify(tamperedPayload, signature)
 
-                            statusText = "Signature Verification:\n" +
+                            // A truncated signature is malformed: verify() must return false, not throw.
+                            val isValidMalformed = ec.verify(samplePayload, signature.copyOf(8))
+
+                            val ecEncryptRejected = runCatching { ec.encrypt(samplePayload) }.isFailure
+
+                            statusText = "Signature Verification (EC P-256):\n" +
                                     " • Original Payload Valid: $isValidOriginal\n" +
-                                    " • Tampered Payload Valid: ${if (!isValidTampered) "tampering detected" else "NOT detected!"}"
+                                    " • Tampered Payload Valid: $isValidTampered " +
+                                    "(${if (isValidTampered) "tampering NOT detected!" else "tampering detected"})\n" +
+                                    " • Malformed Signature Valid: $isValidMalformed\n" +
+                                    " • EC encrypt() rejected: $ecEncryptRejected"
                         }.onFailure { error ->
                             statusText = "Verification Failed: ${error.localizedMessage}"
                         }
@@ -245,23 +303,6 @@ class MainActivity: FragmentActivity() {
                 ) {
                     Text("Verify Signature & Test Tamper")
                 }
-
-                val ecSigner = remember {
-                    SecureCore.createAsymmetricCryptoManager("demo_ec_signing_key", AsymmetricAlgorithm.EC())
-                }
-
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        runCatching {
-                            val sig = ecSigner.sign(samplePayload)
-                            val ok = ecSigner.verify(samplePayload, sig)
-                            val encryptBlocked = runCatching { ecSigner.encrypt(samplePayload) }.isFailure
-                            statusText = "EC P-256 sign/verify: $ok (${sig.size} bytes)\n" +
-                                    " • encrypt() rejected for EC: $encryptBlocked"
-                        }.onFailure { statusText = "EC Failed: ${it.localizedMessage}" }
-                    }
-                ) { Text("Sign & Verify with EC P-256") }
             }
 
             // ==========================================
@@ -346,8 +387,8 @@ class MainActivity: FragmentActivity() {
                         val hasUserCAs = networkSecurityManager.hasUserInstalledCertificates()
                         val summary = buildString {
                             appendLine("TrustStore Inspection:")
-                            appendLine(" • User CAs Detected: ${if (hasUserCAs) "YES (Risk: MitM / Proxy active)" else "NO (Clean system store)"}")
-                            appendLine(" • Potential Proxy/Packet Capture Tool Active: $hasUserCAs")
+                            appendLine(" • User CAs Detected: ${if (hasUserCAs) "YES (possible interception, e.g. a proxy)" else "NO"}")
+                            appendLine(" • Note: a user CA is a common sign of a proxy, not proof that one is active.")
                         }
                         statusText = summary.trimEnd()
                     }
@@ -360,6 +401,8 @@ class MainActivity: FragmentActivity() {
                     onClick = {
                         scope.launch {
                             val host = "api.github.com"
+                            // DEMO ONLY: a deliberately wrong pin to show that a mismatch blocks the connection.
+                            // Never ship a placeholder pin: it blocks every connection to that host.
                             val wrongPin = "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
                             val clientBuilder = OkHttpClient.Builder()
                             val pins = mapOf(host to listOf(wrongPin))
@@ -376,7 +419,7 @@ class MainActivity: FragmentActivity() {
                                         appendLine("Pinning Verification:")
                                         appendLine(" • Connection Blocked: SUCCESS")
                                         appendLine(" • Reason: SSLPeerUnverifiedException")
-                                        appendLine(" • MitM Attack Prevented: Host key rejected")
+                                        appendLine(" • Result: connection rejected because no pin matched")
                                     }.trimEnd()
                                 } catch (e: Exception) {
                                     "Network Error: ${e.message}"
@@ -393,6 +436,10 @@ class MainActivity: FragmentActivity() {
                     onClick = {
                         scope.launch {
                             val host = "api.github.com"
+                            // DEMO ONLY: a dummy pin forces a mismatch so OkHttp's error message lists the pins
+                            // of the certificates the server sent. Parsing e.message depends on OkHttp's message
+                            // format and may break between versions. In a real app, obtain pins offline
+                            // (for example with openssl) and never parse exception messages.
                             val dummyPin = "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
                             val clientBuilder = OkHttpClient.Builder()
                             val pins = mapOf(host to listOf(dummyPin))

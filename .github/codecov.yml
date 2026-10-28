@@ -13,8 +13,10 @@ coverage:
 
 # Exclusiones
 ignore:
-  - "app/**"                 # Ignora la app de demostración al completo
-  - "**/BuildConfig.*"       # Ignora código autogenerado de Android
+  - "app/**"                    # Ignora la app de demostración al completo
+  - "**/BuildConfig.*"          # Ignora código autogenerado de Android
   - "**/R.class"
   - "**/R$*.class"
-  - "**/*Test*.*"            # Evita medir clases de test dentro del coverage
+  - "**/*Test*.*"               # Evita medir clases de test dentro del coverage
+  - "**/internal/biometric/**"  # Requiere sensor de huella simulado
+  - "**/api/biometric/**"       # Requiere sensor de huella simulado
